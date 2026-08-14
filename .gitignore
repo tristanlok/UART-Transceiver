@@ -1,0 +1,62 @@
+# Verilator and simulation output
+build/
+obj_dir/
+*.vcd
+*.fst
+*.ghw
+*.lxt
+*.lxt2
+coverage.dat
+coverage.info
+
+# Compiled files
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# VS Code and other editors
+.vscode/
+.vscode-test/
+.history/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Local AI/tool configuration and caches
+.codex/
+.agents/
+.claude/
+.cursor/
+.windsurf/
+
+# C/C++ tooling and build systems
+.cache/
+compile_commands.json
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+# Python tooling sometimes used by test scripts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node tooling sometimes used by HDL utilities
+node_modules/
+
+# Logs, temporary files, and OS metadata
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
