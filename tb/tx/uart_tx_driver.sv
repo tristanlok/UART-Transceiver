@@ -20,9 +20,21 @@ class uart_tx_driver;
     endtask
 
     task automatic send_byte(input logic [7:0] data);
+        int unsigned delay_cycles;
+
+        delay_cycles = $urandom_range(200, 0);
+
+        $display("[%0t] Driver waiting to send byte 0x%02h", $time, data);
         wait (vif.tx_ready);
 
-        @(posedge vif.clk);
+        $display(
+            "[%0t] Driver delaying transmission by %0d clock cycles",
+            $time,
+            delay_cycles
+        );
+
+        repeat (delay_cycles)
+            @(posedge vif.clk);
 
         vif.tx_data  <= data;
         vif.tx_start <= 1'b1;

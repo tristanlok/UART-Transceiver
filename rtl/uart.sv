@@ -9,9 +9,16 @@ module uart #(
 
     output logic       tx_ready,
     output logic       tx_out
+`ifdef UART_SIM
+    , output logic     baud_tick_sim
+`endif
 );
 
     logic baud_tick;
+
+`ifdef UART_SIM
+    assign baud_tick_sim = baud_tick;
+`endif
 
     baud_generator #(
         .CLOCK_HZ  (CLOCK_HZ),
