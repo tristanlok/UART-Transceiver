@@ -51,17 +51,19 @@ module uart_tx_tb;
         driver = new(uart_tx_vif);
         monitor = new(uart_tx_vif);
         scoreboard = new();
-        tests = new(driver, monitor, scoreboard);
+        tests = new(uart_tx_vif, driver, monitor, scoreboard);
 
         $display("[%0t] Resetting DUT", $time);
         driver.reset_dut();
         $display("[%0t] Running test: %s", $time, testname);
 
         case (testname)
-            "basic":
-                tests.test_basic();
-            "patterns":
-                tests.test_patterns();
+            "tx_sim_sanity":
+                tests.tx_send_data_sanity();
+            "tx_send_data_and_assert_reset":
+                tests.tx_send_data_and_assert_reset();
+            "tx_hold_request_data_stability":
+                tests.tx_hold_request_data_stability();
             default:
                 $fatal(1, "Unknown test: %s", testname);
         endcase
