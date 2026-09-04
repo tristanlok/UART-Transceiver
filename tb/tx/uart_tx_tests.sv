@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 class uart_tx_tests;
     virtual uart_tx_if  vif;
     uart_tx_driver     driver;
@@ -17,15 +19,15 @@ class uart_tx_tests;
     endfunction
 
     task automatic tx_send_data_sanity();
-        logic [7:0] patterns [0:7] = '{
-            8'h00,
-            8'hFF,
-            8'h55,
-            8'hAA,
-            8'h01,
-            8'h80,
-            8'hA5,
-            8'h5A
+        logic [`DATA_BITS-1:0] patterns [0:7] = '{
+            '0,
+            '1,
+            `DATA_BITS'(8'h55),
+            `DATA_BITS'(8'hAA),
+            `DATA_BITS'(8'h01),
+            `DATA_BITS'(8'h80),
+            `DATA_BITS'(8'hA5),
+            `DATA_BITS'(8'h5A)
         };
 
         $display(
@@ -34,19 +36,28 @@ class uart_tx_tests;
             $size(patterns)
         );
 
-        $display("[%0t] Asserting Reset on DUT", $time)
-        driver.reset_and_hold_dut($urandom_range(200, 0));
-        $display("[%0t] Reset Deasserted on DUT", $time)
+        $display("[%0t] Asserting Reset on DUT", $time);
+        driver.assert_reset();
+        repeat ($urandom_range(200, 5))
+            @(posedge vif.clk);
+        scoreboard.check_reset_state(
+            vif.rst_n,
+            vif.tx,
+            vif.tx_ready,
+            vif.baud_tick
+        );
+        driver.deassert_reset();
+        $display("[%0t] Reset Deasserted on DUT", $time);
 
         foreach (patterns[i]) begin
-            logic [7:0] actual;
+            logic [`DATA_BITS-1:0] actual;
 
             $display(
                 "[%0t] [TEST] Pattern %0d/%0d: data=0x%02h",
                 $time,
                 i + 1,
                 $size(patterns),
-                patterns[i],
+                patterns[i]
             );
 
             fork
@@ -82,8 +93,8 @@ class uart_tx_tests;
     endtask
 
     task automatic tx_send_data_and_assert_reset();
-        logic [7:0] random_data = 8'($urandom);
-        int unsigned reset_after_bits = $urandom_range(7, 1);
+        logic [`DATA_BITS-1:0] random_data = `DATA_BITS'($urandom);
+        int unsigned reset_after_bits = $urandom_range(`DATA_BITS - 1, 1);
         bit unexpected_start = 1'b0;
         
         $display(
@@ -93,9 +104,18 @@ class uart_tx_tests;
             reset_after_bits
         );
 
-        $display("[%0t] Asserting Reset on DUT", $time)
-        driver.reset_and_hold_dut($urandom_range(200, 0));
-        $display("[%0t] Reset Deasserted on DUT", $time)
+        $display("[%0t] Asserting Reset on DUT", $time);
+        driver.assert_reset();
+        repeat ($urandom_range(200, 5))
+            @(posedge vif.clk);
+        scoreboard.check_reset_state(
+            vif.rst_n,
+            vif.tx,
+            vif.tx_ready,
+            vif.baud_tick
+        );
+        driver.deassert_reset();
+        $display("[%0t] Reset Deasserted on DUT", $time);
 
         fork
             begin : send_transaction
@@ -114,7 +134,10 @@ class uart_tx_tests;
                 driver.wait_clock_cycles(vif.baud_tick, reset_after_bits);
 
                 $display("[%0t] Asserting reset during transmission", $time);
-                driver.reset_and_hold_dut($urandom_range(50, 5));
+                driver.assert_reset();
+                repeat ($urandom_range(50, 5))
+                    @(posedge vif.clk);
+                driver.deassert_reset();
                 $display("[%0t] Reset released", $time);
             end
 
@@ -175,9 +198,9 @@ class uart_tx_tests;
     endtask
 
     task automatic tx_hold_request_data_stability();
-        logic [7:0] original_data = 8'hA5;
-        logic [7:0] changed_data  = 8'h3C;
-        logic [7:0] actual;
+        logic [`DATA_BITS-1:0] original_data = `DATA_BITS'(8'hA5);
+        logic [`DATA_BITS-1:0] changed_data  = `DATA_BITS'(8'h3C);
+        logic [`DATA_BITS-1:0] actual;
         bit         extra_frame_seen = 1'b0;
 
         $display(
@@ -187,9 +210,18 @@ class uart_tx_tests;
             changed_data
         );
 
-        $display("[%0t] Asserting Reset on DUT", $time)
-        driver.reset_and_hold_dut($urandom_range(200, 0));
-        $display("[%0t] Reset Deasserted on DUT", $time)
+        $display("[%0t] Asserting Reset on DUT", $time);
+        driver.assert_reset();
+        repeat ($urandom_range(200, 5))
+            @(posedge vif.clk);
+        scoreboard.check_reset_state(
+            vif.rst_n,
+            vif.tx,
+            vif.tx_ready,
+            vif.baud_tick
+        );
+        driver.deassert_reset();
+        $display("[%0t] Reset Deasserted on DUT", $time);
 
         fork
             begin : stimulus
