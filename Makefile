@@ -3,31 +3,69 @@ SHELL := /bin/bash
 
 SIM_TOP   ?= uart_tx_tb
 RTL_TOP   ?= uart
-TEST      ?= tx_sim_sanity
 TX_SIM    ?= 0
+RX_SIM    ?= 0
+RUN_ALL   ?= 0
 TX_TESTS  ?= tx_sim_sanity \
              tx_send_data_and_assert_reset \
              tx_hold_request_data_stability
+RX_TESTS  ?= rx_sim_sanity
 BUILD_DIR ?= build
 LOG_DIR   ?= $(BUILD_DIR)/logs
 WAVE_DIR  ?= $(BUILD_DIR)/waves
-SIM_LOG   ?= $(LOG_DIR)/$(SIM_TOP)_$(TEST).log
-WAVE_FILE ?= $(WAVE_DIR)/$(SIM_TOP)_$(TEST).vcd
 TIMESCALE ?= 1ns/1ps
 
 RTL_SRCS := rtl/baud_generator.sv \
-	        rtl/uart_tx.sv \
-	        rtl/uart.sv
+		    rtl/uart_rx.sv \
+		    rtl/uart_tx.sv \
+		    rtl/uart.sv
 
-TB_DIR            := tb/tx
-TB_PACKAGE        := $(TB_DIR)/uart_tx_tb_pkg.sv
-TB_INTERFACE      := $(TB_DIR)/uart_tx_if.sv
-TB_TOP_SOURCE     := $(TB_DIR)/uart_tx_tb.sv
-TB_COMPONENT_SRCS := $(filter-out $(TB_PACKAGE) $(TB_INTERFACE) $(TB_TOP_SOURCE),\
-	                 $(wildcard $(TB_DIR)/*.sv))
-TB_SRCS           := $(TB_PACKAGE) $(TB_INTERFACE) $(TB_COMPONENT_SRCS) \
-	                 $(TB_TOP_SOURCE)
-SOURCES  := $(RTL_SRCS) $(TB_SRCS)
+TX_RTL_SRCS := rtl/baud_generator.sv \
+		       rtl/uart_tx.sv
+
+RX_RTL_SRCS := rtl/baud_generator.sv \
+		       rtl/uart_rx.sv
+
+# Keep the files in declaration order: package, interface, classes, then top.
+TX_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
+		      tb/tx/uart_tx_if.sv \
+		      tb/tx/uart_tx_driver.sv \
+		      tb/tx/uart_tx_monitor.sv \
+		      tb/tx/uart_tx_scoreboard.sv \
+		      tb/tx/uart_tx_tests.sv \
+		      tb/tx/uart_tx_tb.sv
+
+RX_TB_SRCS := tb/rx/uart_rx_tb_pkg.sv \
+		      tb/rx/uart_rx_if.sv \
+		      tb/rx/uart_rx_driver.sv \
+		      tb/rx/uart_rx_monitor.sv \
+		      tb/rx/uart_rx_scoreboard.sv \
+		      tb/rx/uart_rx_tests.sv \
+		      tb/rx/uart_rx_tb.sv
+
+ifeq ($(SIM_TOP),uart_tx_tb)
+SIM_RTL_SRCS := $(TX_RTL_SRCS)
+TB_SRCS      := $(TX_TB_SRCS)
+DEFAULT_TEST := tx_sim_sanity
+ACTIVE_TESTS := $(TX_TESTS)
+LEGACY_ALL   := $(TX_SIM)
+else ifeq ($(SIM_TOP),uart_rx_tb)
+SIM_RTL_SRCS := $(RX_RTL_SRCS)
+TB_SRCS      := $(RX_TB_SRCS)
+DEFAULT_TEST := rx_sim_sanity
+ACTIVE_TESTS := $(RX_TESTS)
+LEGACY_ALL   := $(RX_SIM)
+else
+$(error Unsupported SIM_TOP "$(SIM_TOP)"; use uart_tx_tb or uart_rx_tb)
+endif
+
+TEST          ?= $(DEFAULT_TEST)
+RUN_ALL_TESTS := $(if $(filter 1,$(RUN_ALL) $(LEGACY_ALL)),1,0)
+SIM_BUILD_DIR := $(BUILD_DIR)/$(SIM_TOP)
+SIM_BINARY    := $(SIM_BUILD_DIR)/V$(SIM_TOP)
+SIM_LOG       ?= $(LOG_DIR)/$(SIM_TOP)_$(TEST).log
+WAVE_FILE     ?= $(WAVE_DIR)/$(SIM_TOP)_$(TEST).vcd
+SOURCES       := $(SIM_RTL_SRCS) $(TB_SRCS)
 
 OSS_CAD_SUITE ?= $(HOME)/.local/opt/oss-cad-suite
 FORMAL_CONFIG ?= formal/uart.sby
@@ -43,27 +81,28 @@ VERILATOR_FLAGS    ?= -Wall
 VERILATOR_TB_FLAGS ?= -Wno-UNDRIVEN -Wno-UNUSEDSIGNAL
 SIM_DEFINES         ?= -DUART_SIM
 
-.PHONY: all sim sim-build lint wave formal formal-tasks formal-version clean
+.PHONY: all sim sim-build tx-sim rx-sim tx-sim-all rx-sim-all \
+	lint wave formal formal-tasks formal-version clean
 
 all: sim
 
 sim-build:
-	@mkdir -p "$(LOG_DIR)" "$(WAVE_DIR)"
+	@mkdir -p "$(SIM_BUILD_DIR)" "$(LOG_DIR)" "$(WAVE_DIR)"
 	$(VERILATOR) --binary --timing --trace --timescale $(TIMESCALE) \
 		$(VERILATOR_FLAGS) $(VERILATOR_TB_FLAGS) $(SIM_DEFINES) $(SOURCES) \
 		--top-module $(SIM_TOP) \
-		--Mdir $(BUILD_DIR)
+		--Mdir $(SIM_BUILD_DIR)
 
 sim: sim-build
-ifeq ($(TX_SIM),1)
-	@tests=($(TX_TESTS)); \
+ifeq ($(RUN_ALL_TESTS),1)
+	@tests=($(ACTIVE_TESTS)); \
 	pids=(); \
 	status=0; \
 	for testname in "$${tests[@]}"; do \
 		log_file="$(LOG_DIR)/$(SIM_TOP)_$${testname}.log"; \
 		wave_file="$(WAVE_DIR)/$(SIM_TOP)_$${testname}.vcd"; \
 		echo "[START] $${testname} -> $${log_file}"; \
-		(./$(BUILD_DIR)/V$(SIM_TOP) \
+		("$(SIM_BINARY)" \
 			"+TEST=$${testname}" \
 			"+WAVE_FILE=$${wave_file}" > "$${log_file}" 2>&1) & \
 		pids+=("$$!"); \
@@ -80,9 +119,21 @@ ifeq ($(TX_SIM),1)
 	done; \
 	exit "$$status"
 else
-	./$(BUILD_DIR)/V$(SIM_TOP) "+TEST=$(TEST)" \
+	"$(SIM_BINARY)" "+TEST=$(TEST)" \
 		"+WAVE_FILE=$(WAVE_FILE)" 2>&1 | tee "$(SIM_LOG)"
 endif
+
+tx-sim:
+	$(MAKE) sim SIM_TOP=uart_tx_tb
+
+rx-sim:
+	$(MAKE) sim SIM_TOP=uart_rx_tb
+
+tx-sim-all:
+	$(MAKE) sim SIM_TOP=uart_tx_tb RUN_ALL=1
+
+rx-sim-all:
+	$(MAKE) sim SIM_TOP=uart_rx_tb RUN_ALL=1
 
 lint:
 	$(VERILATOR) --lint-only $(VERILATOR_FLAGS) $(RTL_SRCS) \
