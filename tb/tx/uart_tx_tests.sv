@@ -34,21 +34,23 @@ class uart_tx_tests;
             $size(patterns)
         );
 
+        $display("[%0t] Asserting Reset on DUT", $time)
+        driver.reset_and_hold_dut($urandom_range(200, 0));
+        $display("[%0t] Reset Deasserted on DUT", $time)
+
         foreach (patterns[i]) begin
-            int unsigned delay_cycles = $urandom_range(200, 0);
             logic [7:0] actual;
 
             $display(
-                "[%0t] [TEST] Pattern %0d/%0d: data=0x%02h, delay=%0d clock cycles",
+                "[%0t] [TEST] Pattern %0d/%0d: data=0x%02h",
                 $time,
                 i + 1,
                 $size(patterns),
                 patterns[i],
-                delay_cycles
             );
 
             fork
-                driver.send_byte(patterns[i], delay_cycles);
+                driver.send_byte_and_wait(patterns[i], $urandom_range(200, 0));
 
                 begin
                     $display(
@@ -57,7 +59,9 @@ class uart_tx_tests;
                         i + 1,
                         patterns[i]
                     );
+                    monitor.check_start_bit();
                     monitor.receive_byte(actual);
+                    monitor.check_stop_bit();
                     scoreboard.check_byte(patterns[i], actual);
                 end
             join
@@ -79,21 +83,23 @@ class uart_tx_tests;
 
     task automatic tx_send_data_and_assert_reset();
         logic [7:0] random_data = 8'($urandom);
-        int unsigned send_delay = $urandom_range(200, 0);
         int unsigned reset_after_bits = $urandom_range(7, 1);
         bit unexpected_start = 1'b0;
-
+        
         $display(
-            "[%0t] [TEST] Starting reset-during-transmission test: data=0x%02h, send delay=%0d clocks, reset after=%0d baud periods",
+            "[%0t] [TEST] Starting reset-during-transmission test: data=0x%02h, reset after=%0d baud periods",
             $time,
             random_data,
-            send_delay,
             reset_after_bits
         );
 
+        $display("[%0t] Asserting Reset on DUT", $time)
+        driver.reset_and_hold_dut($urandom_range(200, 0));
+        $display("[%0t] Reset Deasserted on DUT", $time)
+
         fork
             begin : send_transaction
-                driver.send_byte(random_data, send_delay);
+                driver.send_byte_and_wait(random_data, $urandom_range(200, 0));
             end
 
             begin : apply_mid_frame_reset
@@ -108,7 +114,7 @@ class uart_tx_tests;
                 driver.wait_clock_cycles(vif.baud_tick, reset_after_bits);
 
                 $display("[%0t] Asserting reset during transmission", $time);
-                driver.reset_dut();
+                driver.reset_and_hold_dut($urandom_range(50, 5));
                 $display("[%0t] Reset released", $time);
             end
 
@@ -173,7 +179,6 @@ class uart_tx_tests;
         logic [7:0] changed_data  = 8'h3C;
         logic [7:0] actual;
         bit         extra_frame_seen = 1'b0;
-        int unsigned delay_cycles = $urandom_range(200, 0);
 
         $display(
             "[%0t] [TEST] Starting held-request test: accepted data must remain 0x%02h after tx_data changes to 0x%02h",
@@ -182,17 +187,20 @@ class uart_tx_tests;
             changed_data
         );
 
+        $display("[%0t] Asserting Reset on DUT", $time)
+        driver.reset_and_hold_dut($urandom_range(200, 0));
+        $display("[%0t] Reset Deasserted on DUT", $time)
+
         fork
             begin : stimulus
                 $display("[%0t] Waiting for DUT to become ready", $time);
                 driver.wait_until_ready();
 
                 $display(
-                    "[%0t] DUT is ready; waiting %0d clock cycles before request",
-                    $time,
-                    delay_cycles
+                    "[%0t] DUT is ready",
+                    $time
                 );
-                driver.wait_clock_cycles(vif.clk, delay_cycles);
+                driver.wait_clock_cycles(vif.clk, $urandom_range(200, 0));
 
                 $display(
                     "[%0t] Asserting tx_start with tx_data=0x%02h",
@@ -230,13 +238,15 @@ class uart_tx_tests;
                 driver.release_request();
             end
 
-            begin : checking
+            begin : check_uart_frame
                 $display(
                     "[%0t] Monitor waiting for one UART frame carrying 0x%02h",
                     $time,
                     original_data
                 );
+                monitor.check_start_bit();
                 monitor.receive_byte(actual);
+                monitor.check_stop_bit();
                 scoreboard.check_byte(original_data, actual);
             end
         join

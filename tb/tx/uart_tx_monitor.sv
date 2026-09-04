@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 class uart_tx_monitor;
 
     virtual uart_tx_if vif;
@@ -6,29 +8,50 @@ class uart_tx_monitor;
         this.vif = vif_arg;
     endfunction
 
-    task automatic receive_byte(
-        output logic [7:0] data
-    );
+    task automatic check_start_bit();
         // The falling edge marks the beginning of the UART start bit.
         @(negedge vif.tx);
 
-        if (vif.tx !== 1'b0)
-            $error("Invalid start bit");
-
-        // baud_tick is a registered clock-enable pulse. Its falling edge
-        // occurs when the transmitter consumes the pulse and advances to the
-        // next UART bit. Wait one simulation step for outputs to settle.
-        for (int i = 0; i < 8; i++) begin
-            @(negedge vif.baud_tick);
+        // Check the start bit
+        for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
+            $display("[%0t] Baud tick: %0d", $time, baud_tick);
+            if (baud_tick == (`OVERSAMPLE/2)) begin
+                if (vif.tx !== 1'b0)
+                    $error("Invalid start bit");
+            end
+            @(negedge vif.ref_baud_tick);
             #1step;
-            data[i] = vif.tx;
         end
-
-        @(negedge vif.baud_tick);
-        #1step;
-
-        if (vif.tx !== 1'b1)
-            $error("Invalid stop bit");
     endtask
 
+    task automatic receive_byte(
+        output logic [7:0] data
+    );
+        for (int data_bit = 0; data_bit < `DATA_BITS; data_bit++) begin
+            for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
+                if (baud_tick == (`OVERSAMPLE/2)) begin
+                    $display("[%0t] Recieve Data Bit: %0d", $time, vif.tx);
+                    data[data_bit] = vif.tx;
+                end
+                @(negedge vif.ref_baud_tick);
+                #1step;
+            end
+        end
+    endtask
+
+    task automatic check_stop_bit();
+        // Check the stop bit
+        for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
+            if (baud_tick == (`OVERSAMPLE/2)) begin
+                if (vif.tx !== 1'b1)
+                    $error("Invalid stop bit");
+            end
+            @(negedge vif.ref_baud_tick);
+            #1step;
+        end
+    endtask
+
+    task automatic recieve_tx_ready(output logic tx_ready);
+        tx_ready = vix.tx_ready;
+    endtask
 endclass

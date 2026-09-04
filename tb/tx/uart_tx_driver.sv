@@ -5,12 +5,18 @@ class uart_tx_driver;
         this.vif = vif_arg;
     endfunction
 
-    task automatic reset_dut();
+    task automatic reset_and_hold_dut(input int unsigned hold_cycles);
         vif.rst_n    <= 1'b0;
         vif.tx_start <= 1'b0;
         vif.tx_data  <= '0;
 
-        repeat (5)
+        $display(
+            "[%0t] Driver holding reset for %0d clock cycles",
+            $time,
+            hold_cycles
+        );
+
+        repeat (hold_cycles);
             @(posedge vif.clk);
 
         vif.rst_n <= 1'b1;
@@ -49,7 +55,7 @@ class uart_tx_driver;
         @(posedge vif.clk);
     endtask
 
-    task automatic send_byte(
+    task automatic send_byte_and_wait(
         input logic [7:0] data,
         input int unsigned delay_cycles
     );

@@ -1,27 +1,52 @@
+`include "rtl/uart_config.svh"
+
 module uart_tx_tb;
+    timeunit 1ns;
+    timeprecision 1ps;
+
     import uart_tx_tb_pkg::*;
+
+    localparam int unsigned CLOCK_HZ  = 100_000_000;
+    localparam int unsigned BAUD_RATE = 115_200;
+    localparam realtime REF_TICK_HALF_PERIOD =
+        1.0e9 / (2.0 * BAUD_RATE * `OVERSAMPLE);
 
     logic clk;
     uart_tx_if uart_tx_vif(clk);
 
-    uart #(
-        .CLOCK_HZ  (100_000_000),
-        .BAUD_RATE (115_200)
-    ) dut (
-        .clk      (clk),
-        .rst_n    (uart_tx_vif.rst_n),
-        .data_in  (uart_tx_vif.tx_data),
-        .tx_start (uart_tx_vif.tx_start),
-        .tx_ready (uart_tx_vif.tx_ready),
-        .tx_out   (uart_tx_vif.tx)
-`ifdef UART_SIM
-        , .baud_tick_sim (uart_tx_vif.baud_tick)
-`endif
+    baud_generator #(
+        .CLOCK_HZ  (CLOCK_HZ),
+        .BAUD_RATE (BAUD_RATE)
+    ) baud_generator_inst (
+        .clk            (clk),
+        .rst_n          (uart_tx_vif.rst_n),
+        .baud_tick      (uart_tx_vif.baud_tick)
+    );
+
+    uart_tx uart_tx_inst (
+        .clk        (clk),
+        .rst_n      (uart_tx_vif.rst_n),
+        .baud_tick  (uart_tx_vif.baud_tick),
+        .data_in    (uart_tx_vif.tx_data),
+        .tx_start   (uart_tx_vif.tx_start),
+        .tx_ready   (uart_tx_vif.tx_ready),
+        .tx_out     (uart_tx_vif.tx)
     );
 
     initial clk = 1'b0;
 
     always #5 clk = ~clk;
+
+    // This independent 16x timing reference is used only by the testbench
+    // monitor. The DUT continues to use the RTL-generated baud_tick above.
+    initial begin : generate_reference_baud_tick
+        uart_tx_vif.ref_baud_tick = 1'b0;
+
+        forever begin
+            #(REF_TICK_HALF_PERIOD);
+            uart_tx_vif.ref_baud_tick = ~uart_tx_vif.ref_baud_tick;
+        end
+    end
 
     initial begin
         string wave_file;
@@ -34,6 +59,8 @@ module uart_tx_tb;
         $dumpvars(0, uart_tx_tb);
         $display("[0 ns] Recording waveforms to %s", wave_file);
     end
+
+    // add assertions and cover properties
 
     initial begin : test_sequence
         string testname;
