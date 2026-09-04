@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 interface uart_tx_if (input logic clk);
 
     logic       rst_n;
@@ -5,7 +7,7 @@ interface uart_tx_if (input logic clk);
     logic       ref_baud_tick;
 
     logic       tx_start;
-    logic [7:0] tx_data;
+    logic [`DATA_BITS-1:0] tx_data;
     
     logic       tx;
     logic       tx_ready;

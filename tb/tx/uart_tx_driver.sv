@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 class uart_tx_driver;
     virtual uart_tx_if vif;
 
@@ -5,24 +7,26 @@ class uart_tx_driver;
         this.vif = vif_arg;
     endfunction
 
-    task automatic reset_and_hold_dut(input int unsigned hold_cycles);
-        vif.rst_n    <= 1'b0;
-        vif.tx_start <= 1'b0;
-        vif.tx_data  <= '0;
+    task automatic assert_reset();
+        vif.rst_n    = 1'b0;
+        vif.tx_start = 1'b0;
+        vif.tx_data  = '0;
 
         $display(
-            "[%0t] Driver holding reset for %0d clock cycles",
-            $time,
-            hold_cycles
+            "[%0t] Driver asserted reset",
+            $time
         );
+    endtask
 
-        repeat (hold_cycles);
-            @(posedge vif.clk);
+    task automatic deassert_reset();
+        // Release reset away from the DUT's active clock edge.
+        @(negedge vif.clk);
+        vif.rst_n = 1'b1;
 
-        vif.rst_n <= 1'b1;
-
-        repeat (2)
-            @(posedge vif.clk);
+        $display(
+            "[%0t] Driver released reset; TX inputs remain inactive",
+            $time
+        );
     endtask
 
     task automatic wait_until_ready();
@@ -37,7 +41,7 @@ class uart_tx_driver;
             @(posedge clk);
     endtask
 
-    task automatic assert_request(input logic [7:0] data);
+    task automatic assert_request(input logic [`DATA_BITS-1:0] data);
         vif.tx_data  <= data;
         vif.tx_start <= 1'b1;
     endtask
@@ -46,7 +50,7 @@ class uart_tx_driver;
         wait (!vif.tx_ready);
     endtask
 
-    task automatic set_data(input logic [7:0] data);
+    task automatic set_data(input logic [`DATA_BITS-1:0] data);
         vif.tx_data <= data;
     endtask
 
@@ -56,7 +60,7 @@ class uart_tx_driver;
     endtask
 
     task automatic send_byte_and_wait(
-        input logic [7:0] data,
+        input logic [`DATA_BITS-1:0] data,
         input int unsigned delay_cycles
     );
         $display("[%0t] Driver waiting to send byte 0x%02h", $time, data);

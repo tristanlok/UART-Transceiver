@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 class uart_tx_scoreboard;
     function void check_reset_state(
         input logic rst_n,
@@ -47,8 +49,8 @@ class uart_tx_scoreboard;
     endfunction
 
     function void check_byte(
-        input logic [7:0] expected,
-        input logic [7:0] actual
+        input logic [`DATA_BITS-1:0] expected,
+        input logic [`DATA_BITS-1:0] actual
     );
         if (actual === expected) begin
             $display(

@@ -37,8 +37,9 @@ module uart_tx_tb;
 
     always #5 clk = ~clk;
 
-    // This independent 16x timing reference is used only by the testbench
-    // monitor. The DUT continues to use the RTL-generated baud_tick above.
+    // This independent oversampling reference is used only by the testbench
+    // monitor. Its rate is configured by `OVERSAMPLE, while the DUT continues
+    // to use the RTL-generated baud_tick above.
     initial begin : generate_reference_baud_tick
         uart_tx_vif.ref_baud_tick = 1'b0;
 
@@ -80,8 +81,6 @@ module uart_tx_tb;
         scoreboard = new();
         tests = new(uart_tx_vif, driver, monitor, scoreboard);
 
-        $display("[%0t] Resetting DUT", $time);
-        driver.reset_dut();
         $display("[%0t] Running test: %s", $time, testname);
 
         case (testname)

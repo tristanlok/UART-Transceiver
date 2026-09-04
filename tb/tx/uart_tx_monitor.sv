@@ -25,7 +25,7 @@ class uart_tx_monitor;
     endtask
 
     task automatic receive_byte(
-        output logic [7:0] data
+        output logic [`DATA_BITS-1:0] data
     );
         for (int data_bit = 0; data_bit < `DATA_BITS; data_bit++) begin
             for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
@@ -52,6 +52,6 @@ class uart_tx_monitor;
     endtask
 
     task automatic recieve_tx_ready(output logic tx_ready);
-        tx_ready = vix.tx_ready;
+        tx_ready = vif.tx_ready;
     endtask
 endclass
