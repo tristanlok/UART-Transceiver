@@ -47,6 +47,32 @@ class uart_rx_driver;
         wait_ref_ticks(`OVERSAMPLE);
     endtask
 
+    // Drive one UART data bit while independently controlling the three
+    // samples used by the receiver's majority voter. vote_samples[2] is the
+    // first sample, vote_samples[1] the middle sample, and vote_samples[0]
+    // the final sample.
+    task automatic drive_serial_bit_with_vote(
+        input logic       nominal_bit,
+        input logic [2:0] vote_samples
+    );
+        for (int tick_index = 0;
+             tick_index < `OVERSAMPLE;
+             tick_index++) begin
+            unique case (tick_index)
+                (`OVERSAMPLE / 2 - 2):
+                    vif.rx_in = vote_samples[2];
+                (`OVERSAMPLE / 2 - 1):
+                    vif.rx_in = vote_samples[1];
+                (`OVERSAMPLE / 2):
+                    vif.rx_in = vote_samples[0];
+                default:
+                    vif.rx_in = nominal_bit;
+            endcase
+
+            wait_ref_ticks(1);
+        end
+    endtask
+
     // A start bit begins a frame, so align it to the external transmitter's
     // independent timing reference before driving the line low.
     task automatic send_start_bit();
@@ -106,6 +132,42 @@ class uart_rx_driver;
             $time,
             data
         );
+    endtask
+
+    // Send a legal UART frame, but replace the three center samples of one
+    // selected data bit with vote_samples. All other bits remain unchanged.
+    task automatic send_frame_with_data_vote(
+        input logic [`DATA_BITS-1:0] data,
+        input int unsigned           target_bit,
+        input logic [2:0]            vote_samples
+    );
+        if (target_bit >= `DATA_BITS) begin
+            $fatal(
+                1,
+                "Target bit %0d is outside DATA_BITS=%0d",
+                target_bit,
+                `DATA_BITS
+            );
+        end
+
+        $display(
+            "[%0t] Driver injecting vote samples %03b into data bit %0d",
+            $time,
+            vote_samples,
+            target_bit
+        );
+
+        send_start_bit();
+
+        for (int bit_index = 0; bit_index < `DATA_BITS; bit_index++) begin
+            if (bit_index == target_bit) begin
+                drive_serial_bit_with_vote(data[bit_index], vote_samples);
+            end else begin
+                drive_serial_bit(data[bit_index]);
+            end
+        end
+
+        send_stop_bit();
     endtask
 
     task automatic drive_idle_ticks(input int unsigned tick_count);

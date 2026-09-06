@@ -9,7 +9,10 @@ RUN_ALL   ?= 0
 TX_TESTS  ?= tx_sim_sanity \
              tx_send_data_and_assert_reset \
              tx_hold_request_data_stability
-RX_TESTS  ?= rx_sim_sanity
+RX_TESTS  ?= rx_sim_sanity \
+             rx_false_start \
+             rx_data_majority_vote \
+             rx_reset_every_state
 BUILD_DIR ?= build
 LOG_DIR   ?= $(BUILD_DIR)/logs
 WAVE_DIR  ?= $(BUILD_DIR)/waves

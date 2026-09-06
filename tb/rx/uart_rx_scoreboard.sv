@@ -55,6 +55,30 @@ class uart_rx_scoreboard;
         end
     endfunction
 
+    function void check_busy_state(
+        input logic  expected,
+        input logic  actual,
+        input string state_context
+    );
+        if (actual === expected) begin
+            $display(
+                "[%0t] [PASS] RX busy state in %s: expected=%0b actual=%0b",
+                $time,
+                state_context,
+                expected,
+                actual
+            );
+        end else begin
+            $error(
+                "[%0t] [FAIL] RX busy state in %s: expected=%0b actual=%0b",
+                $time,
+                state_context,
+                expected,
+                actual
+            );
+        end
+    endfunction
+
     function void check_data(
         input logic [`DATA_BITS-1:0] expected,
         input logic [`DATA_BITS-1:0] actual
@@ -75,6 +99,26 @@ class uart_rx_scoreboard;
             );
         end
     endfunction
+
+    function void check_false_start_busy(
+        input logic busy_asserted,
+        input logic busy_deasserted
+    );
+        if (busy_asserted && busy_deasserted) begin
+            $display(
+                "[%0t] [PASS] DUT successfully entered START state before reverting back to IDLE after false start",
+                $time
+            );
+        end else begin
+            $error(
+                "[%0t] [FAIL] DUT failed to correctly model false start. busy_asserted=%0b busy_deasserted=%0b",
+                $time,
+                busy_asserted,
+                busy_deasserted
+            );
+        end
+    endfunction
+
 
     function void check_data_unchanged_after_error(
         input logic [`DATA_BITS-1:0] previous_data,

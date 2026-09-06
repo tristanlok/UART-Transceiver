@@ -34,4 +34,28 @@ class uart_rx_monitor;
             end
         end
     endtask
+
+    task automatic wait_for_busy_state(
+        input  logic        expected_busy,
+        input  int unsigned timeout_baud_ticks,
+        output bit          observed
+    );
+        int unsigned baud_ticks_seen;
+
+        observed        = 1'b0;
+        baud_ticks_seen = 0;
+
+        while (baud_ticks_seen < timeout_baud_ticks) begin
+            @(posedge vif.clk);
+            #1step;
+
+            if (vif.rx_busy === expected_busy) begin
+                observed = 1'b1;
+                return;
+            end
+
+            if (vif.baud_tick === 1'b1)
+                baud_ticks_seen++;
+        end
+    endtask
 endclass

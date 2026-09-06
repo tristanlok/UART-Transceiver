@@ -85,6 +85,12 @@ module uart_rx_tb;
         case (testname)
             "rx_sim_sanity":
                 tests.rx_read_data_sanity();
+            "rx_false_start":
+                tests.rx_false_start();
+            "rx_data_majority_vote":
+                tests.rx_data_majority_vote();
+            "rx_reset_every_state":
+                tests.rx_reset_every_state();
             default:
                 $fatal(1, "Unknown test: %s", testname);
         endcase
