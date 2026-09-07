@@ -14,7 +14,8 @@ RX_TESTS  ?= rx_sim_sanity \
              rx_false_start \
              rx_data_majority_vote \
              rx_reset_every_state
-UART_TESTS ?= $(RX_TESTS)
+UART_TESTS ?= uart_tx_sanity \
+              uart_rx_sanity
 BUILD_DIR ?= build
 LOG_DIR   ?= $(BUILD_DIR)/logs
 WAVE_DIR  ?= $(BUILD_DIR)/waves
@@ -63,6 +64,7 @@ UART_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
 			tb/tx/uart_tx_driver.sv \
 			tb/tx/uart_tx_monitor.sv \
 			tb/tx/uart_tx_scoreboard.sv \
+			tb/tx/uart_tx_tests.sv \
 			tb/rx/uart_rx_driver.sv \
 			tb/rx/uart_rx_monitor.sv \
 			tb/rx/uart_rx_scoreboard.sv \
@@ -86,7 +88,7 @@ LEGACY_ALL   := $(RX_SIM)
 else ifeq ($(SIM_TOP),uart_tb)
 SIM_RTL_SRCS := $(RTL_SRCS)
 TB_SRCS      := $(UART_TB_SRCS)
-DEFAULT_TEST := rx_sim_sanity
+DEFAULT_TEST := uart_tx_sanity
 ACTIVE_TESTS := $(UART_TESTS)
 LEGACY_ALL   := 0
 else

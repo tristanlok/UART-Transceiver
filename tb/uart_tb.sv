@@ -83,7 +83,7 @@ module uart_tb;
         $display("[%0t] Starting UART Transceiver test", $time);
 
         if (!$value$plusargs("TEST=%s", testname))
-            testname = "uart_sim_sanity";
+            testname = "uart_tx_sanity";
 
         // The top creates one environment. Future integrated tests can reuse
         // the same object instead of rebuilding every component themselves.
@@ -96,9 +96,9 @@ module uart_tb;
 
         case (testname)
             "uart_tx_sanity":
-                tests.uart_tx_sanity();
+                tests.tx_tests.tx_send_data_sanity();
             "uart_rx_sanity":
-                tests.uart_rx_sanity();
+                tests.rx_tests.rx_read_data_sanity();
             default:
                 $fatal(1, "Unknown test: %s", testname);
         endcase
