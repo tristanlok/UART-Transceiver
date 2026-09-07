@@ -7,24 +7,14 @@ class uart_tx_driver;
         this.vif = vif_arg;
     endfunction
 
-    task automatic assert_reset();
-        vif.rst_n    = 1'b0;
+    // Put only the TX protocol inputs into their inactive values. Reset is
+    // owned separately by uart_reset_driver because it affects the whole DUT.
+    task automatic drive_idle();
         vif.tx_start = 1'b0;
         vif.tx_data  = '0;
 
         $display(
-            "[%0t] Driver asserted reset",
-            $time
-        );
-    endtask
-
-    task automatic deassert_reset();
-        // Release reset away from the DUT's active clock edge.
-        @(negedge vif.clk);
-        vif.rst_n = 1'b1;
-
-        $display(
-            "[%0t] Driver released reset; TX inputs remain inactive",
+            "[%0t] TX driver placed inputs in their idle state",
             $time
         );
     endtask

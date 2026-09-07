@@ -1,10 +1,8 @@
 `include "rtl/uart_config.svh"
 
-module uart_rx_tb;
+module uart_tb;
     timeunit 1ns;
     timeprecision 1ps;
-
-    import uart_rx_tb_pkg::*;
 
     localparam int unsigned CLOCK_HZ  = 100_000_000;
     localparam int unsigned BAUD_RATE = 115_200;
@@ -19,26 +17,33 @@ module uart_rx_tb;
         uart_tb_ctrl_vif.baud_tick,
         uart_tb_ctrl_vif.ref_baud_tick
     );
-
-    baud_generator #(
-        .CLOCK_HZ  (CLOCK_HZ),
-        .BAUD_RATE (BAUD_RATE)
-    ) baud_generator_inst (
-        .clk            (clk),
-        .rst_n          (uart_tb_ctrl_vif.rst_n),
-        .baud_tick      (uart_tb_ctrl_vif.baud_tick)
+    uart_tx_if uart_tx_vif(
+        clk,
+        uart_tb_ctrl_vif.rst_n,
+        uart_tb_ctrl_vif.baud_tick,
+        uart_tb_ctrl_vif.ref_baud_tick
     );
 
-    uart_rx uart_rx_inst (
+    uart #(
+        .CLOCK_HZ  (CLOCK_HZ),
+        .BAUD_RATE (BAUD_RATE)
+    ) uart_inst (
         .clk            (clk),
-        .rst_n          (uart_rx_vif.rst_n),
-        .baud_tick      (uart_rx_vif.baud_tick),
-        .rx_in          (uart_rx_vif.rx_in),
+        .rst_n          (uart_tb_ctrl_vif.rst_n),
 
-        .data_out       (uart_rx_vif.rx_data),
+        .tx_data        (uart_tx_vif.tx_data),
+        .tx_start       (uart_tx_vif.tx_start),
+        .tx_ready       (uart_tx_vif.tx_ready),
+        .tx_out         (uart_tx_vif.tx_out),
+
+        .rx_in          (uart_rx_vif.rx_in),
+        .rx_data        (uart_rx_vif.rx_data),
         .rx_valid       (uart_rx_vif.rx_valid),
         .rx_busy        (uart_rx_vif.rx_busy),
         .framing_error  (uart_rx_vif.framing_error)
+`ifdef UART_SIM
+        ,.baud_tick_sim (uart_tb_ctrl_vif.baud_tick)
+`endif
     );
 
     initial clk = 1'b0;
@@ -61,56 +66,44 @@ module uart_rx_tb;
         string wave_file;
 
         if (!$value$plusargs("WAVE_FILE=%s", wave_file)) begin
-            wave_file = "build/waves/uart_rx_tb.vcd";
+            wave_file = "build/waves/uart_tb.vcd";
         end
 
         $dumpfile(wave_file);
-        $dumpvars(0, uart_rx_tb);
+        $dumpvars(0, uart_tb);
         $display("[0 ns] Recording waveforms to %s", wave_file);
     end
 
     initial begin : test_sequence
         string testname;
-        uart_reset_driver reset_driver;
-        uart_rx_driver driver;
-        uart_rx_monitor monitor;
-        uart_rx_scoreboard scoreboard;
-        uart_rx_tests tests;
+        uart_env env;
+        uart_tests tests;
 
         $timeformat(-9, 3, " ns", 12);
-        $display("[%0t] Starting UART receiver test", $time);
+        $display("[%0t] Starting UART Transceiver test", $time);
 
         if (!$value$plusargs("TEST=%s", testname))
-            testname = "rx_sim_sanity";
+            testname = "uart_sim_sanity";
 
-        reset_driver = new(uart_tb_ctrl_vif);
-        driver = new(uart_rx_vif);
-        monitor = new(uart_rx_vif);
-        scoreboard = new();
-        tests = new(
-            uart_rx_vif,
-            reset_driver,
-            driver,
-            monitor,
-            scoreboard
-        );
+        // The top creates one environment. Future integrated tests can reuse
+        // the same object instead of rebuilding every component themselves.
+        env = new(uart_tb_ctrl_vif, uart_tx_vif, uart_rx_vif);
+        env.initialize_inputs();
+
+        tests = new(env);
 
         $display("[%0t] Running test: %s", $time, testname);
 
         case (testname)
-            "rx_sim_sanity":
-                tests.rx_read_data_sanity();
-            "rx_false_start":
-                tests.rx_false_start();
-            "rx_data_majority_vote":
-                tests.rx_data_majority_vote();
-            "rx_reset_every_state":
-                tests.rx_reset_every_state();
+            "uart_tx_sanity":
+                tests.uart_tx_sanity();
+            "uart_rx_sanity":
+                tests.uart_rx_sanity();
             default:
                 $fatal(1, "Unknown test: %s", testname);
         endcase
 
-        wait (!uart_rx_vif.rx_busy);
+        //wait (!uart_rx_vif.rx_busy);
         $display("[%0t] UART receiver test finished", $time);
         $finish;
     end

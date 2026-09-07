@@ -13,6 +13,7 @@ RX_TESTS  ?= rx_sim_sanity \
              rx_false_start \
              rx_data_majority_vote \
              rx_reset_every_state
+UART_TESTS ?= $(RX_TESTS)
 BUILD_DIR ?= build
 LOG_DIR   ?= $(BUILD_DIR)/logs
 WAVE_DIR  ?= $(BUILD_DIR)/waves
@@ -31,7 +32,9 @@ RX_RTL_SRCS := rtl/baud_generator.sv \
 
 # Keep the files in declaration order: package, interface, classes, then top.
 TX_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
+		      tb/common/uart_tb_ctrl_if.sv \
 		      tb/tx/uart_tx_if.sv \
+		      tb/common/uart_reset_driver.sv \
 		      tb/tx/uart_tx_driver.sv \
 		      tb/tx/uart_tx_monitor.sv \
 		      tb/tx/uart_tx_scoreboard.sv \
@@ -39,12 +42,33 @@ TX_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
 		      tb/tx/uart_tx_tb.sv
 
 RX_TB_SRCS := tb/rx/uart_rx_tb_pkg.sv \
+		      tb/common/uart_tb_ctrl_if.sv \
 		      tb/rx/uart_rx_if.sv \
+		      tb/common/uart_reset_driver.sv \
 		      tb/rx/uart_rx_driver.sv \
 		      tb/rx/uart_rx_monitor.sv \
 		      tb/rx/uart_rx_scoreboard.sv \
 		      tb/rx/uart_rx_tests.sv \
 		      tb/rx/uart_rx_tb.sv
+
+# The first integrated bench reuses the verified TX/RX components. Its current
+# test selection intentionally remains the RX suite until duplex tests exist.
+UART_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
+			tb/rx/uart_rx_tb_pkg.sv \
+			tb/common/uart_tb_ctrl_if.sv \
+			tb/tx/uart_tx_if.sv \
+			tb/rx/uart_rx_if.sv \
+			tb/common/uart_reset_driver.sv \
+			tb/tx/uart_tx_driver.sv \
+			tb/tx/uart_tx_monitor.sv \
+			tb/tx/uart_tx_scoreboard.sv \
+			tb/rx/uart_rx_driver.sv \
+			tb/rx/uart_rx_monitor.sv \
+			tb/rx/uart_rx_scoreboard.sv \
+			tb/rx/uart_rx_tests.sv \
+			tb/uart_env.sv \
+			tb/uart_tests.sv \
+			tb/uart_tb.sv
 
 ifeq ($(SIM_TOP),uart_tx_tb)
 SIM_RTL_SRCS := $(TX_RTL_SRCS)
@@ -58,8 +82,14 @@ TB_SRCS      := $(RX_TB_SRCS)
 DEFAULT_TEST := rx_sim_sanity
 ACTIVE_TESTS := $(RX_TESTS)
 LEGACY_ALL   := $(RX_SIM)
+else ifeq ($(SIM_TOP),uart_tb)
+SIM_RTL_SRCS := $(RTL_SRCS)
+TB_SRCS      := $(UART_TB_SRCS)
+DEFAULT_TEST := rx_sim_sanity
+ACTIVE_TESTS := $(UART_TESTS)
+LEGACY_ALL   := 0
 else
-$(error Unsupported SIM_TOP "$(SIM_TOP)"; use uart_tx_tb or uart_rx_tb)
+$(error Unsupported SIM_TOP "$(SIM_TOP)"; use uart_tx_tb, uart_rx_tb, or uart_tb)
 endif
 
 TEST          ?= $(DEFAULT_TEST)
@@ -84,7 +114,7 @@ VERILATOR_FLAGS    ?= -Wall
 VERILATOR_TB_FLAGS ?= -Wno-UNDRIVEN -Wno-UNUSEDSIGNAL
 SIM_DEFINES         ?= -DUART_SIM
 
-.PHONY: all sim sim-build tx-sim rx-sim tx-sim-all rx-sim-all \
+.PHONY: all sim sim-build tx-sim rx-sim uart-sim tx-sim-all rx-sim-all \
 	lint wave formal formal-tasks formal-version clean
 
 all: sim
@@ -132,6 +162,9 @@ tx-sim:
 rx-sim:
 	$(MAKE) sim SIM_TOP=uart_rx_tb
 
+uart-sim:
+	$(MAKE) sim SIM_TOP=uart_tb
+
 tx-sim-all:
 	$(MAKE) sim SIM_TOP=uart_tx_tb RUN_ALL=1
 
@@ -141,7 +174,7 @@ rx-sim-all:
 lint:
 	$(VERILATOR) --lint-only $(VERILATOR_FLAGS) $(RTL_SRCS) \
 		--top-module $(RTL_TOP)
-	$(VERILATOR) --lint-only --timing \
+	$(VERILATOR) --lint-only --timing --timescale $(TIMESCALE) \
 		$(VERILATOR_FLAGS) $(VERILATOR_TB_FLAGS) $(SIM_DEFINES) $(SOURCES) \
 		--top-module $(SIM_TOP)
 

@@ -10,13 +10,13 @@ class uart_tx_monitor;
 
     task automatic check_start_bit();
         // The falling edge marks the beginning of the UART start bit.
-        @(negedge vif.tx);
+        @(negedge vif.tx_out);
 
         // Check the start bit
         for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
             $display("[%0t] Baud tick: %0d", $time, baud_tick);
             if (baud_tick == (`OVERSAMPLE/2)) begin
-                if (vif.tx !== 1'b0)
+                if (vif.tx_out !== 1'b0)
                     $error("Invalid start bit");
             end
             @(negedge vif.ref_baud_tick);
@@ -30,8 +30,8 @@ class uart_tx_monitor;
         for (int data_bit = 0; data_bit < `DATA_BITS; data_bit++) begin
             for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
                 if (baud_tick == (`OVERSAMPLE/2)) begin
-                    $display("[%0t] Recieve Data Bit: %0d", $time, vif.tx);
-                    data[data_bit] = vif.tx;
+                    $display("[%0t] Recieve Data Bit: %0d", $time, vif.tx_out);
+                    data[data_bit] = vif.tx_out;
                 end
                 @(negedge vif.ref_baud_tick);
                 #1step;
@@ -43,7 +43,7 @@ class uart_tx_monitor;
         // Check the stop bit
         for (int baud_tick = 0; baud_tick < `OVERSAMPLE; baud_tick++) begin
             if (baud_tick == (`OVERSAMPLE/2)) begin
-                if (vif.tx !== 1'b1)
+                if (vif.tx_out !== 1'b1)
                     $error("Invalid stop bit");
             end
             @(negedge vif.ref_baud_tick);

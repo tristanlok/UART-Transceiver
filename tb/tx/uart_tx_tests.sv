@@ -2,17 +2,20 @@
 
 class uart_tx_tests;
     virtual uart_tx_if  vif;
+    uart_reset_driver  reset_driver;
     uart_tx_driver     driver;
     uart_tx_monitor    monitor;
     uart_tx_scoreboard scoreboard;
 
     function new(
         virtual uart_tx_if vif_arg,
+        uart_reset_driver reset_driver_arg,
         uart_tx_driver driver_arg,
         uart_tx_monitor monitor_arg,
         uart_tx_scoreboard scoreboard_arg
     );
         this.vif        = vif_arg;
+        this.reset_driver = reset_driver_arg;
         this.driver     = driver_arg;
         this.monitor    = monitor_arg;
         this.scoreboard = scoreboard_arg;
@@ -37,16 +40,17 @@ class uart_tx_tests;
         );
 
         $display("[%0t] Asserting Reset on DUT", $time);
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(
             vif.rst_n,
-            vif.tx,
+            vif.tx_out,
             vif.tx_ready,
             vif.baud_tick
         );
-        driver.deassert_reset();
+        reset_driver.deassert_reset();
         $display("[%0t] Reset Deasserted on DUT", $time);
 
         foreach (patterns[i]) begin
@@ -105,16 +109,17 @@ class uart_tx_tests;
         );
 
         $display("[%0t] Asserting Reset on DUT", $time);
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(
             vif.rst_n,
-            vif.tx,
+            vif.tx_out,
             vif.tx_ready,
             vif.baud_tick
         );
-        driver.deassert_reset();
+        reset_driver.deassert_reset();
         $display("[%0t] Reset Deasserted on DUT", $time);
 
         fork
@@ -124,7 +129,7 @@ class uart_tx_tests;
 
             begin : apply_mid_frame_reset
                 $display("[%0t] Waiting for the UART start bit", $time);
-                @(negedge vif.tx);
+                @(negedge vif.tx_out);
 
                 $display(
                     "[%0t] Frame started; waiting %0d baud periods before reset",
@@ -134,10 +139,11 @@ class uart_tx_tests;
                 driver.wait_clock_cycles(vif.baud_tick, reset_after_bits);
 
                 $display("[%0t] Asserting reset during transmission", $time);
-                driver.assert_reset();
+                driver.drive_idle();
+                reset_driver.assert_reset();
                 repeat ($urandom_range(50, 5))
                     @(posedge vif.clk);
-                driver.deassert_reset();
+                reset_driver.deassert_reset();
                 $display("[%0t] Reset released", $time);
             end
 
@@ -156,7 +162,7 @@ class uart_tx_tests;
                     #1step;
                     scoreboard.check_reset_state(
                         vif.rst_n,
-                        vif.tx,
+                        vif.tx_out,
                         vif.tx_ready,
                         vif.baud_tick
                     );
@@ -171,7 +177,7 @@ class uart_tx_tests;
 
         fork : post_reset_check
             begin
-                @(negedge vif.tx);
+                @(negedge vif.tx_out);
                 unexpected_start = 1'b1;
                 $display(
                     "[%0t] Detected an unexpected start bit after reset",
@@ -189,7 +195,7 @@ class uart_tx_tests;
         if (unexpected_start) begin
             $error("[%0t] [FAIL] Interrupted frame resumed after reset", $time);
         end else begin
-            scoreboard.check_idle_state(vif.tx, vif.tx_ready);
+            scoreboard.check_idle_state(vif.tx_out, vif.tx_ready);
             $display(
                 "[%0t] [PASS] Reset-during-transmission test completed",
                 $time
@@ -211,16 +217,17 @@ class uart_tx_tests;
         );
 
         $display("[%0t] Asserting Reset on DUT", $time);
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(
             vif.rst_n,
-            vif.tx,
+            vif.tx_out,
             vif.tx_ready,
             vif.baud_tick
         );
-        driver.deassert_reset();
+        reset_driver.deassert_reset();
         $display("[%0t] Reset Deasserted on DUT", $time);
 
         fork
@@ -290,7 +297,7 @@ class uart_tx_tests;
         );
         fork : no_extra_frame_check
             begin
-                @(negedge vif.tx);
+                @(negedge vif.tx_out);
                 extra_frame_seen = 1'b1;
                 $display("[%0t] Detected an unexpected second start bit", $time);
             end

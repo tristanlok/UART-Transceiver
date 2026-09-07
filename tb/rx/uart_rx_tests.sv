@@ -2,17 +2,20 @@
 
 class uart_rx_tests;
     virtual uart_rx_if  vif;
+    uart_reset_driver  reset_driver;
     uart_rx_driver     driver;
     uart_rx_monitor    monitor;
     uart_rx_scoreboard scoreboard;
 
     function new(
         virtual uart_rx_if vif_arg,
+        uart_reset_driver reset_driver_arg,
         uart_rx_driver driver_arg,
         uart_rx_monitor monitor_arg,
         uart_rx_scoreboard scoreboard_arg
     );
         this.vif        = vif_arg;
+        this.reset_driver = reset_driver_arg;
         this.driver     = driver_arg;
         this.monitor    = monitor_arg;
         this.scoreboard = scoreboard_arg;
@@ -25,8 +28,8 @@ class uart_rx_tests;
                (samples[1] & samples[2]);
     endfunction
 
-    // Reset ownership remains in the test: the driver only controls the pins,
-    // while this helper selects the duration and checks the sampled outputs.
+    // The test selects the reset timing, uart_reset_driver owns rst_n, and the
+    // RX driver only restores its protocol input to the UART idle level.
     task automatic reset_and_check(input string state_name);
         $display(
             "[%0t] [TEST] Asserting reset while receiver is in %s",
@@ -34,20 +37,21 @@ class uart_rx_tests;
             state_name
         );
 
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat (3)
             @(posedge vif.clk);
         #1step;
 
         scoreboard.check_reset_state(
             vif.rst_n,
-            vif.data_out,
+            vif.rx_data,
             vif.rx_valid,
             vif.rx_busy,
             vif.framing_error
         );
 
-        driver.deassert_reset();
+        reset_driver.deassert_reset();
         driver.drive_idle_ticks(2);
     endtask
 
@@ -96,11 +100,12 @@ class uart_rx_tests;
         );
 
         $display("[%0t] Asserting Reset on DUT", $time);
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
-        scoreboard.check_reset_state(vif.rst_n, vif.data_out, vif.rx_valid, vif.rx_busy, vif.framing_error);
-        driver.deassert_reset();
+        scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
+        reset_driver.deassert_reset();
         $display("[%0t] Reset Deasserted on DUT", $time);
 
         foreach (patterns[i]) begin
@@ -157,11 +162,12 @@ class uart_rx_tests;
         );
 
         $display("[%0t] Asserting Reset on DUT", $time);
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
-        scoreboard.check_reset_state(vif.rst_n, vif.data_out, vif.rx_valid, vif.rx_busy, vif.framing_error);
-        driver.deassert_reset();
+        scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
+        reset_driver.deassert_reset();
         $display("[%0t] Reset Deasserted on DUT", $time);
 
         $display("[%0t] Delaying before beginning test", $time);
@@ -215,17 +221,18 @@ class uart_rx_tests;
             $size(vote_patterns)
         );
 
-        driver.assert_reset();
+        driver.drive_idle();
+        reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(
             vif.rst_n,
-            vif.data_out,
+            vif.rx_data,
             vif.rx_valid,
             vif.rx_busy,
             vif.framing_error
         );
-        driver.deassert_reset();
+        reset_driver.deassert_reset();
 
         for (int target_bit = 0; target_bit < `DATA_BITS; target_bit++) begin
             foreach (vote_patterns[pattern_index]) begin

@@ -20,7 +20,7 @@ class uart_rx_monitor;
             #1step;
 
             if (vif.rx_valid === 1'b1) begin
-                data          = vif.data_out;
+                data          = vif.rx_data;
                 framing_error = vif.framing_error;
 
                 $display(

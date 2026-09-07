@@ -1,13 +1,15 @@
 `include "rtl/uart_config.svh"
 
-interface uart_rx_if (input logic clk);
+interface uart_rx_if (
+    input logic clk,
+    input logic rst_n,
+    input logic baud_tick,
+    input logic ref_baud_tick
+);
 
-    logic                       rst_n;
-    logic                       baud_tick;
-    logic                       ref_baud_tick;
     logic                       rx_in;
 
-    logic [`DATA_BITS-1:0]      data_out;
+    logic [`DATA_BITS-1:0]      rx_data;
     logic                       rx_valid;
     logic                       rx_busy;
     logic                       framing_error;

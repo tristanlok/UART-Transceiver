@@ -7,23 +7,13 @@ class uart_rx_driver;
         this.vif = vif_arg;
     endfunction
 
-    task automatic assert_reset();
-        vif.rst_n = 1'b0;
+    // UART serial input idles high. Reset itself is owned separately by
+    // uart_reset_driver because it affects the complete UART.
+    task automatic drive_idle();
         vif.rx_in = 1'b1;
 
         $display(
-            "[%0t] Driver asserted reset",
-            $time
-        );
-    endtask
-
-    task automatic deassert_reset();
-        // Release reset away from the DUT's active clock edge.
-        @(negedge vif.clk);
-        vif.rst_n = 1'b1;
-
-        $display(
-            "[%0t] Driver released reset; rx_in returned to idle-high",
+            "[%0t] RX driver returned rx_in to idle-high",
             $time
         );
     endtask
