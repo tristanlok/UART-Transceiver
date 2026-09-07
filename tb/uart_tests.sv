@@ -61,7 +61,7 @@ class uart_tests;
                     env.tx_monitor.check_start_bit();
                     env.tx_monitor.receive_byte(actual);
                     env.tx_monitor.check_stop_bit();
-                    env.tx_scoreboard.check_byte(patterns[i], actual);
+                    env.tx_scoreboard.check_data(patterns[i], actual);
                 end
             join
 

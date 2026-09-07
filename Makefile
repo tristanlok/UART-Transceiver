@@ -8,7 +8,8 @@ RX_SIM    ?= 0
 RUN_ALL   ?= 0
 TX_TESTS  ?= tx_sim_sanity \
              tx_send_data_and_assert_reset \
-             tx_hold_request_data_stability
+             tx_hold_request_data_stability \
+             tx_reset_every_state
 RX_TESTS  ?= rx_sim_sanity \
              rx_false_start \
              rx_data_majority_vote \

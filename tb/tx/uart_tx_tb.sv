@@ -82,7 +82,7 @@ module uart_tx_tb;
         $display("[%0t] Starting UART transmitter test", $time);
 
         if (!$value$plusargs("TEST=%s", testname))
-            testname = "basic";
+            testname = "tx_sim_sanity";
 
         reset_driver = new(uart_tb_ctrl_vif);
         driver = new(uart_tx_vif);
@@ -105,6 +105,8 @@ module uart_tx_tb;
                 tests.tx_send_data_and_assert_reset();
             "tx_hold_request_data_stability":
                 tests.tx_hold_request_data_stability();
+            "tx_reset_every_state":
+                tests.tx_reset_every_state();
             default:
                 $fatal(1, "Unknown test: %s", testname);
         endcase
