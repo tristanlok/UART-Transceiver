@@ -9,13 +9,17 @@ RUN_ALL   ?= 0
 TX_TESTS  ?= tx_sim_sanity \
              tx_send_data_and_assert_reset \
              tx_hold_request_data_stability \
+             tx_exact_bit_duration \
              tx_reset_every_state
 RX_TESTS  ?= rx_sim_sanity \
              rx_false_start \
              rx_data_majority_vote \
+             rx_framing_error \
              rx_reset_every_state
 UART_TESTS ?= uart_tx_sanity \
-              uart_rx_sanity
+              uart_rx_sanity \
+              uart_duplex_sanity \
+              uart_error_isolation
 BUILD_DIR ?= build
 LOG_DIR   ?= $(BUILD_DIR)/logs
 WAVE_DIR  ?= $(BUILD_DIR)/waves
@@ -53,8 +57,8 @@ RX_TB_SRCS := tb/rx/uart_rx_tb_pkg.sv \
 		      tb/rx/uart_rx_tests.sv \
 		      tb/rx/uart_rx_tb.sv
 
-# The first integrated bench reuses the verified TX/RX components. Its current
-# test selection intentionally remains the RX suite until duplex tests exist.
+# The integrated bench reuses the verified TX/RX components and adds tests
+# that exercise both sides of the uart top at the same time.
 UART_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
 			tb/rx/uart_rx_tb_pkg.sv \
 			tb/common/uart_tb_ctrl_if.sv \
@@ -69,6 +73,8 @@ UART_TB_SRCS := tb/tx/uart_tx_tb_pkg.sv \
 			tb/rx/uart_rx_monitor.sv \
 			tb/rx/uart_rx_scoreboard.sv \
 			tb/rx/uart_rx_tests.sv \
+			tb/uart_monitor.sv \
+			tb/uart_scoreboard.sv \
 			tb/uart_env.sv \
 			tb/uart_tests.sv \
 			tb/uart_tb.sv

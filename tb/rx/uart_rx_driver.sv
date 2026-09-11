@@ -12,10 +12,9 @@ class uart_rx_driver;
     task automatic drive_idle();
         vif.rx_in = 1'b1;
 
-        $display(
-            "[%0t] RX driver returned rx_in to idle-high",
-            $time
-        );
+        `UART_DISPLAY((
+            "[RX DRIVER] returned rx_in to idle-high"
+        ))
     endtask
 
     task automatic wait_ref_ticks(input int unsigned tick_count);
@@ -67,61 +66,56 @@ class uart_rx_driver;
     // independent timing reference before driving the line low.
     task automatic send_start_bit();
         align_to_ref_tick();
-        $display("[%0t] Driver sending start bit: 0", $time);
+        `UART_DISPLAY(("[RX DRIVER] sending start bit: 0"))
         drive_serial_bit(1'b0);
     endtask
 
     task automatic send_data_byte(input logic [`DATA_BITS-1:0] data);
-        $display(
-            "[%0t] Driver sending data 0x%0h LSB-first",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] sending data 0x%0h LSB-first",
             data
-        );
+        ))
 
         for (int bit_index = 0; bit_index < `DATA_BITS; bit_index++) begin
-            $display(
-                "[%0t] Driver sending data bit %0d: %0b",
-                $time,
+            `UART_DISPLAY((
+                "[RX DRIVER] sending data bit %0d: %0b",
                 bit_index,
                 data[bit_index]
-            );
+            ))
             drive_serial_bit(data[bit_index]);
         end
     endtask
 
     task automatic send_stop_bit(input logic stop_bit = 1'b1);
-        $display(
-            "[%0t] Driver sending stop bit: %0b",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] sending stop bit: %0b",
             stop_bit
-        );
+        ))
         drive_serial_bit(stop_bit);
 
         // UART idles high, including after an intentionally bad stop bit.
         vif.rx_in = 1'b1;
-        $display("[%0t] Driver returned rx_in to idle-high", $time);
+        `UART_DISPLAY(("[RX DRIVER] returned rx_in to idle-high"))
     endtask
 
     task automatic send_frame(
         input logic [`DATA_BITS-1:0] data,
         input logic                  stop_bit = 1'b1
     );
-        $display(
-            "[%0t] Driver starting RX frame: data=0x%0h stop_bit=%0b",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] starting RX frame: data=0x%0h stop_bit=%0b",
             data,
             stop_bit
-        );
+        ))
 
         send_start_bit();
         send_data_byte(data);
         send_stop_bit(stop_bit);
 
-        $display(
-            "[%0t] Driver completed RX frame: data=0x%0h",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] completed RX frame: data=0x%0h",
             data
-        );
+        ))
     endtask
 
     // Send a legal UART frame, but replace the three center samples of one
@@ -132,20 +126,19 @@ class uart_rx_driver;
         input logic [2:0]            vote_samples
     );
         if (target_bit >= `DATA_BITS) begin
-            $fatal(
+            `UART_FATAL((
                 1,
-                "Target bit %0d is outside DATA_BITS=%0d",
+                "[RX DRIVER] target bit %0d is outside DATA_BITS=%0d",
                 target_bit,
                 `DATA_BITS
-            );
+            ))
         end
 
-        $display(
-            "[%0t] Driver injecting vote samples %03b into data bit %0d",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] injecting vote samples %03b into data bit %0d",
             vote_samples,
             target_bit
-        );
+        ))
 
         send_start_bit();
 
@@ -161,34 +154,31 @@ class uart_rx_driver;
     endtask
 
     task automatic drive_idle_ticks(input int unsigned tick_count);
-        $display(
-            "[%0t] Driver holding rx_in idle-high for %0d reference ticks",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] holding rx_in idle-high for %0d reference ticks",
             tick_count
-        );
+        ))
 
         vif.rx_in = 1'b1;
         wait_ref_ticks(tick_count);
 
-        $display("[%0t] Driver completed idle interval", $time);
+        `UART_DISPLAY(("[RX DRIVER] completed idle interval"))
     endtask
 
     task automatic drive_low_pulse(input int unsigned tick_count);
         align_to_ref_tick();
 
-        $display(
-            "[%0t] Driver injecting low pulse for %0d reference ticks",
-            $time,
+        `UART_DISPLAY((
+            "[RX DRIVER] injecting low pulse for %0d reference ticks",
             tick_count
-        );
+        ))
 
         vif.rx_in = 1'b0;
         wait_ref_ticks(tick_count);
         vif.rx_in = 1'b1;
 
-        $display(
-            "[%0t] Driver completed low pulse; rx_in returned to idle-high",
-            $time
-        );
+        `UART_DISPLAY((
+            "[RX DRIVER] completed low pulse; rx_in returned to idle-high"
+        ))
     endtask
 endclass

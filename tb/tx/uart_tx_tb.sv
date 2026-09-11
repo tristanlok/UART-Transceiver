@@ -65,7 +65,7 @@ module uart_tx_tb;
 
         $dumpfile(wave_file);
         $dumpvars(0, uart_tx_tb);
-        $display("[0 ns] Recording waveforms to %s", wave_file);
+        `UART_DISPLAY(("[TX TB] Recording waveforms to %s", wave_file))
     end
 
     // add assertions and cover properties
@@ -79,7 +79,7 @@ module uart_tx_tb;
         uart_tx_tests tests;
 
         $timeformat(-9, 3, " ns", 12);
-        $display("[%0t] Starting UART transmitter test", $time);
+        `UART_DISPLAY(("[TX TB] Starting UART transmitter test"))
 
         if (!$value$plusargs("TEST=%s", testname))
             testname = "tx_sim_sanity";
@@ -96,7 +96,7 @@ module uart_tx_tb;
             scoreboard
         );
 
-        $display("[%0t] Running test: %s", $time, testname);
+        `UART_DISPLAY(("[TX TB] Running test: %s", testname))
 
         case (testname)
             "tx_sim_sanity":
@@ -105,14 +105,16 @@ module uart_tx_tb;
                 tests.tx_send_data_and_assert_reset();
             "tx_hold_request_data_stability":
                 tests.tx_hold_request_data_stability();
+            "tx_exact_bit_duration":
+                tests.tx_exact_bit_duration();
             "tx_reset_every_state":
                 tests.tx_reset_every_state();
             default:
-                $fatal(1, "Unknown test: %s", testname);
+                `UART_FATAL((1, "[TX TB] Unknown test: %s", testname))
         endcase
 
         wait (uart_tx_vif.tx_ready);
-        $display("[%0t] UART transmitter test finished", $time);
+        `UART_DISPLAY(("[TX TB] UART transmitter test finished"))
         $finish;
     end
 endmodule

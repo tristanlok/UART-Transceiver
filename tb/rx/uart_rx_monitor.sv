@@ -8,8 +8,32 @@ class uart_rx_monitor;
         this.vif = vif_arg;
     endfunction
 
-    task automatic receive_frame(
+    task automatic watch_for_activity(ref logic unexpected_activity_seen);
+        unexpected_activity_seen = 1'b0;
+
+        forever begin
+            @(posedge vif.clk);
+            #1step;
+
+            // Only evaluate normal behavior after reset has been released.
+            if (vif.rst_n === 1'b1) begin
+                if ((vif.rx_in          !== 1'b1) ||
+                    (vif.rx_busy        !== 1'b0) ||
+                    (vif.rx_valid       !== 1'b0) ||
+                    (vif.framing_error  !== 1'b0)
+                ) begin
+                    unexpected_activity_seen = 1'b1;
+                end
+            end
+        end
+    endtask
+
+    // Observe either successful reception or a framing-error completion.
+    // Capturing rx_valid separately lets negative tests prove that bad data
+    // was rejected rather than published as a valid byte.
+    task automatic receive_frame_result(
         output logic [`DATA_BITS-1:0] data,
+        output logic                  rx_valid,
         output logic                  framing_error
     );
         // Ignore output activity until reset has been released.
@@ -19,20 +43,33 @@ class uart_rx_monitor;
             @(posedge vif.clk);
             #1step;
 
-            if (vif.rx_valid === 1'b1) begin
+            if ((vif.rx_valid === 1'b1) ||
+                (vif.framing_error === 1'b1)) begin
                 data          = vif.rx_data;
+                rx_valid      = vif.rx_valid;
                 framing_error = vif.framing_error;
 
-                $display(
-                    "[%0t] Monitor received RX frame: data=0x%0h framing_error=%0b",
-                    $time,
+                `UART_DISPLAY((
+                    "[RX MONITOR] received RX result: data=0x%0h valid=%0b framing_error=%0b",
                     data,
+                    rx_valid,
                     framing_error
-                );
+                ))
 
                 return;
             end
         end
+    endtask
+
+    // Convenience task for existing positive tests. Negative tests use
+    // receive_frame_result() so they can also inspect the valid indication.
+    task automatic receive_frame(
+        output logic [`DATA_BITS-1:0] data,
+        output logic                  framing_error
+    );
+        logic rx_valid;
+
+        receive_frame_result(data, rx_valid, framing_error);
     endtask
 
     task automatic wait_for_busy_state(

@@ -13,10 +13,9 @@ class uart_tx_driver;
         vif.tx_start = 1'b0;
         vif.tx_data  = '0;
 
-        $display(
-            "[%0t] TX driver placed inputs in their idle state",
-            $time
-        );
+        `UART_DISPLAY((
+            "[TX DRIVER] placed inputs in their idle state"
+        ))
     endtask
 
     task automatic wait_until_ready();
@@ -44,11 +43,10 @@ class uart_tx_driver;
         vif.tx_data  = data;
         vif.tx_start = 1'b1;
 
-        $display(
-            "[%0t] TX driver asserted request with data=0x%0h",
-            $time,
+        `UART_DISPLAY((
+            "[TX DRIVER] asserted request with data=0x%0h",
             data
-        );
+        ))
     endtask
 
     task automatic wait_for_acceptance();
@@ -64,37 +62,17 @@ class uart_tx_driver;
         @(negedge vif.clk);
         vif.tx_start = 1'b0;
 
-        $display("[%0t] TX driver released request", $time);
+        `UART_DISPLAY(("[TX DRIVER] released request"))
     endtask
 
     // Complete one request/acceptance handshake. The UART continues shifting
     // the accepted frame after this task returns; the monitor observes that
     // serial activity independently.
-    task automatic send_byte(
-        input logic [`DATA_BITS-1:0] data,
-        input int unsigned           delay_cycles = 0
-    );
-        $display("[%0t] Driver waiting to send byte 0x%02h", $time, data);
+    task automatic send_byte(input logic [`DATA_BITS-1:0] data);
+        `UART_DISPLAY(("[TX DRIVER] waiting to send byte 0x%02h", data))
         wait_until_ready();
-
-        $display(
-            "[%0t] Driver delaying transmission by %0d clock cycles",
-            $time,
-            delay_cycles
-        );
-
-        wait_clock_cycles(delay_cycles);
         assert_request(data);
         wait_for_acceptance();
         release_request();
-    endtask
-
-    // Compatibility wrapper for the integrated test while it migrates to the
-    // shorter send_byte() name. New TX tests should call send_byte().
-    task automatic send_byte_and_wait(
-        input logic [`DATA_BITS-1:0] data,
-        input int unsigned           delay_cycles = 0
-    );
-        send_byte(data, delay_cycles);
     endtask
 endclass

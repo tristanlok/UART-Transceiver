@@ -1,3 +1,5 @@
+`include "rtl/uart_config.svh"
+
 class uart_reset_driver;
     virtual uart_tb_ctrl_if vif;
 
@@ -10,7 +12,7 @@ class uart_reset_driver;
     task automatic assert_reset();
         vif.rst_n = 1'b0;
 
-        $display("[%0t] Reset driver asserted reset", $time);
+        `UART_DISPLAY(("[RESET DRIVER] asserted reset"))
     endtask
 
     // Release reset away from the DUT's active rising edge to avoid a race
@@ -19,7 +21,7 @@ class uart_reset_driver;
         @(negedge vif.clk);
         vif.rst_n = 1'b1;
 
-        $display("[%0t] Reset driver released reset", $time);
+        `UART_DISPLAY(("[RESET DRIVER] released reset"))
     endtask
 
     task automatic apply_reset(input int unsigned cycles = 3);

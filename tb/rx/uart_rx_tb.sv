@@ -66,7 +66,7 @@ module uart_rx_tb;
 
         $dumpfile(wave_file);
         $dumpvars(0, uart_rx_tb);
-        $display("[0 ns] Recording waveforms to %s", wave_file);
+        `UART_DISPLAY(("[RX TB] Recording waveforms to %s", wave_file))
     end
 
     initial begin : test_sequence
@@ -78,7 +78,7 @@ module uart_rx_tb;
         uart_rx_tests tests;
 
         $timeformat(-9, 3, " ns", 12);
-        $display("[%0t] Starting UART receiver test", $time);
+        `UART_DISPLAY(("[RX TB] Starting UART receiver test"))
 
         if (!$value$plusargs("TEST=%s", testname))
             testname = "rx_sim_sanity";
@@ -95,7 +95,7 @@ module uart_rx_tb;
             scoreboard
         );
 
-        $display("[%0t] Running test: %s", $time, testname);
+        `UART_DISPLAY(("[RX TB] Running test: %s", testname))
 
         case (testname)
             "rx_sim_sanity":
@@ -104,14 +104,16 @@ module uart_rx_tb;
                 tests.rx_false_start();
             "rx_data_majority_vote":
                 tests.rx_data_majority_vote();
+            "rx_framing_error":
+                tests.rx_framing_error();
             "rx_reset_every_state":
                 tests.rx_reset_every_state();
             default:
-                $fatal(1, "Unknown test: %s", testname);
+                `UART_FATAL((1, "[RX TB] Unknown test: %s", testname))
         endcase
 
         wait (!uart_rx_vif.rx_busy);
-        $display("[%0t] UART receiver test finished", $time);
+        `UART_DISPLAY(("[RX TB] UART receiver test finished"))
         $finish;
     end
 endmodule

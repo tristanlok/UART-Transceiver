@@ -7,6 +7,13 @@ class uart_rx_tests;
     uart_rx_monitor    monitor;
     uart_rx_scoreboard scoreboard;
 
+    typedef enum logic [1:0] {
+        RX_IDLE,
+        RX_START,
+        RX_DATA,
+        RX_STOP
+    } uart_rx_possible_states_t;
+
     function new(
         virtual uart_rx_if vif_arg,
         uart_reset_driver reset_driver_arg,
@@ -30,16 +37,16 @@ class uart_rx_tests;
 
     // The test selects the reset timing, uart_reset_driver owns rst_n, and the
     // RX driver only restores its protocol input to the UART idle level.
-    task automatic reset_and_check(input string state_name);
-        $display(
-            "[%0t] [TEST] Asserting reset while receiver is in %s",
-            $time,
-            state_name
-        );
+    task automatic reset_and_check(
+        input int unsigned reset_cycles = 3
+    );
+        `UART_DISPLAY((
+            "[RX TEST] Asserting and verifying reset"
+        ))
 
         driver.drive_idle();
         reset_driver.assert_reset();
-        repeat (3)
+        repeat (reset_cycles)
             @(posedge vif.clk);
         #1step;
 
@@ -58,18 +65,15 @@ class uart_rx_tests;
     // A valid byte after each reset proves that the receiver returned to IDLE
     // and can start a completely new frame.
     task automatic check_post_reset_recovery(
-        input logic [`DATA_BITS-1:0] recovery_data,
-        input string                 state_name
+        input logic [`DATA_BITS-1:0] recovery_data
     );
         logic [`DATA_BITS-1:0] actual_data;
         logic                  framing_error;
 
-        $display(
-            "[%0t] [TEST] Checking recovery after reset in %s with data=0x%0h",
-            $time,
-            state_name,
+        `UART_DISPLAY((
+            "[RX TEST] Checking recovery after reset with data=0x%0h",
             recovery_data
-        );
+        ))
 
         fork
             driver.send_frame(recovery_data);
@@ -93,84 +97,70 @@ class uart_rx_tests;
             `DATA_BITS'(8'h5A)
         };
 
-        $display(
-            "[%0t] [TEST] Starting UART recieve sanity test with %0d patterns",
-            $time,
+        `UART_DISPLAY((
+            "[RX TEST] Starting UART receive sanity test with %0d patterns",
             $size(patterns)
-        );
+        ))
 
-        $display("[%0t] Asserting Reset on DUT", $time);
+        `UART_DISPLAY(("[RX TEST] Asserting reset on DUT"))
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
         reset_driver.deassert_reset();
-        $display("[%0t] Reset Deasserted on DUT", $time);
+        `UART_DISPLAY(("[RX TEST] Reset deasserted on DUT"))
 
         foreach (patterns[i]) begin
             logic [`DATA_BITS-1:0] actual;
             logic                  framing_error;
 
-            $display(
-                "[%0t] [TEST] Pattern %0d/%0d: data=0x%02h",
-                $time,
+            `UART_DISPLAY((
+                "[RX TEST] Pattern %0d/%0d: data=0x%02h",
                 i + 1,
                 $size(patterns),
                 patterns[i]
-            );
+            ))
 
             fork
                 driver.send_frame(patterns[i]);
-
-                begin
-                    $display(
-                        "[%0t] Monitor waiting for pattern %0d (0x%02h)",
-                        $time,
-                        i + 1,
-                        patterns[i]
-                    );
-                    monitor.receive_frame(actual, framing_error);
-                end
+                monitor.receive_frame(actual, framing_error);
             join
 
             scoreboard.check_data(patterns[i], actual);
             scoreboard.check_framing_error(1'b0, framing_error);
 
-            $display(
-                "[%0t] [TEST] Pattern %0d/%0d complete",
-                $time,
+            `UART_DISPLAY((
+                "[RX TEST] Pattern %0d/%0d complete",
                 i + 1,
                 $size(patterns)
-            );
+            ))
         end
 
-        $display(
-            "[%0t] [PASS] UART recieve sanity test completed all %0d patterns",
-            $time,
+        `UART_DISPLAY((
+            "[RX TEST] [PASS] UART receive sanity test completed all %0d patterns",
             $size(patterns)
-        );
+        ))
     endtask
 
     task automatic rx_false_start();
         bit busy_asserted;
         bit busy_deasserted;
 
-        $display(
-            "[%0t] [TEST] Starting UART receive false-start test",
-            $time
-        );
+        `UART_DISPLAY((
+            "[RX TEST] Starting UART receive false-start test"
+        ))
 
-        $display("[%0t] Asserting Reset on DUT", $time);
+        `UART_DISPLAY(("[RX TEST] Asserting reset on DUT"))
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
         scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
         reset_driver.deassert_reset();
-        $display("[%0t] Reset Deasserted on DUT", $time);
+        `UART_DISPLAY(("[RX TEST] Reset deasserted on DUT"))
 
-        $display("[%0t] Delaying before beginning test", $time);
+        `UART_DISPLAY(("[RX TEST] Delaying before beginning test"))
         repeat ($urandom_range(200, 5))
             @(posedge vif.clk);
 
@@ -192,10 +182,9 @@ class uart_rx_tests;
 
         scoreboard.check_false_start_busy(busy_asserted, busy_deasserted);
 
-        $display(
-            "[%0t] [PASS] UART recieve false start test completed",
-            $time
-        );
+        `UART_DISPLAY((
+            "[RX TEST] [PASS] UART receive false-start test completed"
+        ))
     endtask
 
     task automatic rx_data_majority_vote();
@@ -214,12 +203,11 @@ class uart_rx_tests;
         logic [`DATA_BITS-1:0] actual_data;
         logic                  framing_error;
 
-        $display(
-            "[%0t] [TEST] Starting RX data majority-vote test: %0d bits x %0d patterns",
-            $time,
+        `UART_DISPLAY((
+            "[RX TEST] Starting RX data majority-vote test: %0d bits x %0d patterns",
             `DATA_BITS,
             $size(vote_patterns)
-        );
+        ))
 
         driver.drive_idle();
         reset_driver.assert_reset();
@@ -247,13 +235,12 @@ class uart_rx_tests;
                 actual_data  = '0;
                 framing_error = 1'b0;
 
-                $display(
-                    "[%0t] [TEST] Majority target_bit=%0d samples=%03b expected_bit=%0b",
-                    $time,
+                `UART_DISPLAY((
+                    "[RX TEST] Majority target_bit=%0d samples=%03b expected_bit=%0b",
                     target_bit,
                     vote_patterns[pattern_index],
                     expected_data[target_bit]
-                );
+                ))
 
                 fork
                     driver.send_frame_with_data_vote(
@@ -270,76 +257,204 @@ class uart_rx_tests;
             end
         end
 
-        $display(
-            "[%0t] [PASS] RX data majority-vote test completed",
-            $time
-        );
+        `UART_DISPLAY((
+            "[RX TEST] [PASS] RX data majority-vote test completed"
+        ))
     endtask
 
-    task automatic rx_reset_every_state();
+    task automatic rx_framing_error();
+        logic [`DATA_BITS-1:0] baseline_data;
+        logic [`DATA_BITS-1:0] rejected_data;
+        logic [`DATA_BITS-1:0] recovery_data;
+        logic [`DATA_BITS-1:0] actual_data;
+        logic                  actual_valid;
+        logic                  actual_error;
+        logic                  valid_after_pulse;
+        logic                  error_after_pulse;
+
+        baseline_data     = `DATA_BITS'(8'hA5);
+        rejected_data     = `DATA_BITS'(8'h3C);
+        recovery_data     = `DATA_BITS'(8'h5A);
+        actual_data       = '0;
+        actual_valid      = 1'b0;
+        actual_error      = 1'b0;
+        valid_after_pulse = 1'b0;
+        error_after_pulse = 1'b0;
+
+        `UART_DISPLAY((
+            "[RX TEST] Starting RX framing-error test"
+        ))
+
+        reset_and_check();
+
+        // Establish a known valid data_out value before injecting the bad
+        // stop bit. A rejected frame must not overwrite this value.
+        fork
+            driver.send_frame(baseline_data);
+            monitor.receive_frame_result(
+                actual_data,
+                actual_valid,
+                actual_error
+            );
+        join
+
+        scoreboard.check_valid_state(
+            1'b1,
+            actual_valid,
+            "valid baseline frame"
+        );
+        scoreboard.check_framing_error(1'b0, actual_error);
+        scoreboard.check_data(baseline_data, actual_data);
+
+        // A low stop bit completes with framing_error=1, rx_valid=0, and the
+        // last valid data_out value preserved.
+        fork
+            driver.send_frame(rejected_data, 1'b0);
+
+            begin : observe_rejected_frame
+                monitor.receive_frame_result(
+                    actual_data,
+                    actual_valid,
+                    actual_error
+                );
+
+                @(posedge vif.clk);
+                #1step;
+                valid_after_pulse = vif.rx_valid;
+                error_after_pulse = vif.framing_error;
+            end
+        join
+
+        scoreboard.check_valid_state(
+            1'b0,
+            actual_valid,
+            "framing-error completion"
+        );
+        scoreboard.check_framing_error(1'b1, actual_error);
+        scoreboard.check_data_unchanged_after_error(
+            baseline_data,
+            actual_data
+        );
+        scoreboard.check_valid_state(
+            1'b0,
+            valid_after_pulse,
+            "cycle after framing error"
+        );
+        scoreboard.check_framing_error(1'b0, error_after_pulse);
+
+        // The receiver must accept a new good frame without requiring reset.
+        fork
+            driver.send_frame(recovery_data);
+            monitor.receive_frame_result(
+                actual_data,
+                actual_valid,
+                actual_error
+            );
+        join
+
+        scoreboard.check_valid_state(
+            1'b1,
+            actual_valid,
+            "post-error recovery frame"
+        );
+        scoreboard.check_framing_error(1'b0, actual_error);
+        scoreboard.check_data(recovery_data, actual_data);
+        scoreboard.check_busy_state(1'b0, vif.rx_busy, "post-error recovery");
+
+        `UART_DISPLAY((
+            "[RX TEST] [PASS] RX framing-error test completed"
+        ))
+    endtask
+
+    task automatic force_state(
+        input uart_rx_possible_states_t state
+    );
         logic [`DATA_BITS-1:0] stimulus_data;
-        bit                    busy_observed;
 
         stimulus_data = `DATA_BITS'(8'hA5);
 
-        $display(
-            "[%0t] [TEST] Starting reset-in-every-RX-state test",
-            $time
-        );
+        case (state)
+            RX_IDLE: begin
+                scoreboard.check_busy_state(1'b0, vif.rx_busy, "RX_IDLE before reset");
+            end
+
+            RX_START: begin
+                logic busy_observed = 1'b0;
+                fork : drive_start_state
+                    driver.send_start_bit();
+
+                    begin
+                        monitor.wait_for_busy_state(1'b1, 2, busy_observed);
+                        if (busy_observed)
+                            driver.wait_ref_ticks(`OVERSAMPLE / 4);
+                    end
+                join_any
+                disable drive_start_state;
+
+                scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_START before reset");
+            end
+
+            RX_DATA: begin
+                driver.send_start_bit();
+                fork : drive_data_state
+                    driver.send_data_byte(stimulus_data);
+                    driver.wait_ref_ticks(`OVERSAMPLE / 2);
+                join_any
+                disable drive_data_state;
+
+                scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_DATA before reset");
+            end
+
+            RX_STOP: begin
+                driver.send_start_bit();
+                driver.send_data_byte(stimulus_data);
+                fork : drive_stop_state
+                    driver.send_stop_bit();
+                    driver.wait_ref_ticks(`OVERSAMPLE / 2);
+                join_any
+                disable drive_stop_state;
+
+                scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_STOP before reset");
+            end
+
+            default: begin
+                `UART_FATAL((
+                    1,
+                    "[RX TEST] Cannot force invalid RX state value %0d",
+                    state
+                ))
+            end
+        endcase
+    endtask
+
+    task automatic rx_reset_every_state();
+        uart_rx_possible_states_t uart_rx_possible_states = uart_rx_possible_states.first();
+
+        `UART_DISPLAY((
+            "[RX TEST] Starting reset-in-every-RX-state test"
+        ))
 
         // Establish a known state before deliberately resetting in RX_IDLE.
-        reset_and_check("initialization");
-        scoreboard.check_busy_state(1'b0, vif.rx_busy, "RX_IDLE before reset");
-        reset_and_check("RX_IDLE");
-        check_post_reset_recovery(`DATA_BITS'(8'h11), "RX_IDLE");
+        reset_and_check();
 
-        // Hold a legal start bit low, wait until the DUT becomes busy, and
-        // interrupt it well before the start-bit sampling window completes.
-        busy_observed = 1'b0;
-        fork : drive_start_state
-            driver.send_start_bit();
+        do begin
+            `UART_DISPLAY((
+                "[RX TEST] Forcing UART RX into state %s",
+                uart_rx_possible_states.name()
+            ))
+            force_state(uart_rx_possible_states);
 
-            begin
-                monitor.wait_for_busy_state(1'b1, 2, busy_observed);
-                if (busy_observed)
-                    driver.wait_ref_ticks(`OVERSAMPLE / 4);
-            end
-        join_any
-        disable drive_start_state;
-
-        scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_START before reset");
-        reset_and_check("RX_START");
-        check_post_reset_recovery(`DATA_BITS'(8'h22), "RX_START");
-
-        // Complete the start bit, begin the first data bit, and reset halfway
-        // through that bit while the receiver is in RX_DATA.
-        driver.send_start_bit();
-        fork : drive_data_state
-            driver.send_data_byte(stimulus_data);
-            driver.wait_ref_ticks(`OVERSAMPLE / 2);
-        join_any
-        disable drive_data_state;
-
-        scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_DATA before reset");
-        reset_and_check("RX_DATA");
-        check_post_reset_recovery(`DATA_BITS'(8'h44), "RX_DATA");
-
-        // Complete start and data, then reset halfway through the stop bit.
-        driver.send_start_bit();
-        driver.send_data_byte(stimulus_data);
-        fork : drive_stop_state
-            driver.send_stop_bit();
-            driver.wait_ref_ticks(`OVERSAMPLE / 2);
-        join_any
-        disable drive_stop_state;
-
-        scoreboard.check_busy_state(1'b1, vif.rx_busy, "RX_STOP before reset");
-        reset_and_check("RX_STOP");
-        check_post_reset_recovery(`DATA_BITS'(8'h88), "RX_STOP");
-
-        $display(
-            "[%0t] [PASS] Reset-in-every-RX-state test completed",
-            $time
-        );
+            `UART_DISPLAY((
+                "[RX TEST] Resetting UART RX from state %s",
+                uart_rx_possible_states.name()
+            ))
+            reset_and_check();
+            check_post_reset_recovery(`DATA_BITS'(8'h11));
+            uart_rx_possible_states = uart_rx_possible_states.next();
+        end while (uart_rx_possible_states != uart_rx_possible_states.first());
+        
+        `UART_DISPLAY((
+            "[RX TEST] [PASS] Reset-in-every-RX-state test completed"
+        ))
     endtask
 endclass

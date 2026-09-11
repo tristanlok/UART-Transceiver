@@ -17,7 +17,7 @@ module uart_rx (
     localparam int unsigned BCLK_COUNT_WIDTH =
         (`OVERSAMPLE <= 1) ? 1 : $clog2(`OVERSAMPLE);
 
-    typedef enum logic [2:0] {
+    typedef enum logic [1:0] {
         RX_IDLE,
         RX_START,
         RX_DATA,
@@ -157,11 +157,11 @@ module uart_rx (
                     };
                 end else if ((curr_state == RX_STOP) &&
                              (bclk_curr_count == BCLK_COUNT_WIDTH'(`OVERSAMPLE - 1))) begin
-                    rx_valid <= '1;
                     if (!majority_vote) begin
                         framing_error <= '1;
                     end else begin
                         data_out <= data_shift_reg;
+                        rx_valid <= '1;
                     end
                 end
             end

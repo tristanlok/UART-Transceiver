@@ -2,6 +2,20 @@
 
 class uart_tx_scoreboard;
 
+    function void check_for_unexpected_activity(
+        input logic tx_activity_seen
+    );
+        if (tx_activity_seen === 0) begin
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] No unexpected activity seen on UART TX"
+            ))
+        end else begin
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] Unexpected activity seen on UART TX"
+            ))
+        end
+    endfunction
+
     function void check_reset_state(
         input logic rst_n,
         input logic tx_out,
@@ -14,19 +28,17 @@ class uart_tx_scoreboard;
             (tx_ready  === 1'b1) &&
             (baud_tick === 1'b0)
         ) begin
-            $display(
-                "[%0t] [PASS] Reset state: tx=1 ready=1 baud_tick=0",
-                $time
-            );
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] Reset state: tx=1 ready=1 baud_tick=0"
+            ))
         end else begin
-            $error(
-                "[%0t] [FAIL] Reset state: rst_n=%b tx=%b ready=%b baud_tick=%b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] Reset state: rst_n=%b tx=%b ready=%b baud_tick=%b",
                 rst_n,
                 tx_out,
                 tx_ready,
                 baud_tick
-            );
+            ))
         end
     endfunction
 
@@ -35,17 +47,15 @@ class uart_tx_scoreboard;
         input logic tx_ready
     );
         if ((tx_out === 1'b1) && (tx_ready === 1'b1)) begin
-            $display(
-                "[%0t] [PASS] UART remained idle after reset",
-                $time
-            );
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] UART remained idle after reset"
+            ))
         end else begin
-            $error(
-                "[%0t] [FAIL] UART not idle after reset: tx=%b ready=%b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] UART not idle after reset: tx=%b ready=%b",
                 tx_out,
                 tx_ready
-            );
+            ))
         end
     endfunction
 
@@ -54,43 +64,39 @@ class uart_tx_scoreboard;
         input logic [`DATA_BITS-1:0] actual
     );
         if (actual === expected) begin
-            $display(
-                "[%0t] [PASS] expected=%02h actual=%02h",
-                $time,
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] expected=%02h actual=%02h",
                 expected,
                 actual
-            );
+            ))
         end else begin
-            $error(
-                "[%0t] [FAIL] TX data: expected=%02h actual=%02h",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX data: expected=%02h actual=%02h",
                 expected,
                 actual
-            );
+            ))
         end
     endfunction
 
     function void check_start_bit(input logic actual);
         if (actual === 1'b0) begin
-            $display("[%0t] [PASS] TX start bit is low", $time);
+            `UART_DISPLAY(("[TX SCOREBOARD] [PASS] TX start bit is low"))
         end else begin
-            $error(
-                "[%0t] [FAIL] TX start bit: expected=0 actual=%b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX start bit: expected=0 actual=%b",
                 actual
-            );
+            ))
         end
     endfunction
 
     function void check_stop_bit(input logic actual);
         if (actual === 1'b1) begin
-            $display("[%0t] [PASS] TX stop bit is high", $time);
+            `UART_DISPLAY(("[TX SCOREBOARD] [PASS] TX stop bit is high"))
         end else begin
-            $error(
-                "[%0t] [FAIL] TX stop bit: expected=1 actual=%b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX stop bit: expected=1 actual=%b",
                 actual
-            );
+            ))
         end
     endfunction
 
@@ -111,21 +117,19 @@ class uart_tx_scoreboard;
         input string state_context
     );
         if (actual === expected) begin
-            $display(
-                "[%0t] [PASS] TX ready state in %s: expected=%0b actual=%0b",
-                $time,
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] TX ready state in %s: expected=%0b actual=%0b",
                 state_context,
                 expected,
                 actual
-            );
+            ))
         end else begin
-            $error(
-                "[%0t] [FAIL] TX ready state in %s: expected=%0b actual=%0b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX ready state in %s: expected=%0b actual=%0b",
                 state_context,
                 expected,
                 actual
-            );
+            ))
         end
     endfunction
 
@@ -135,29 +139,49 @@ class uart_tx_scoreboard;
         input string state_context
     );
         if (actual === expected) begin
-            $display(
-                "[%0t] [PASS] TX output in %s: expected=%0b actual=%0b",
-                $time,
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] TX output in %s: expected=%0b actual=%0b",
                 state_context,
                 expected,
                 actual
-            );
+            ))
         end else begin
-            $error(
-                "[%0t] [FAIL] TX output in %s: expected=%0b actual=%0b",
-                $time,
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX output in %s: expected=%0b actual=%0b",
                 state_context,
                 expected,
                 actual
-            );
+            ))
         end
     endfunction
 
     function void check_no_extra_frame(input logic extra_frame_seen);
         if (!extra_frame_seen) begin
-            $display("[%0t] [PASS] No unexpected TX frame observed", $time);
+            `UART_DISPLAY(("[TX SCOREBOARD] [PASS] No unexpected TX frame observed"))
         end else begin
-            $error("[%0t] [FAIL] Unexpected additional TX frame observed", $time);
+            `UART_ERROR(("[TX SCOREBOARD] [FAIL] Unexpected additional TX frame observed"))
+        end
+    endfunction
+
+    function void check_bit_duration(
+        input string       symbol_name,
+        input int unsigned expected_ticks,
+        input int unsigned actual_ticks
+    );
+        if (actual_ticks == expected_ticks) begin
+            `UART_DISPLAY((
+                "[TX SCOREBOARD] [PASS] TX %s duration: expected=%0d ticks actual=%0d ticks",
+                symbol_name,
+                expected_ticks,
+                actual_ticks
+            ))
+        end else begin
+            `UART_ERROR((
+                "[TX SCOREBOARD] [FAIL] TX %s duration: expected=%0d ticks actual=%0d ticks",
+                symbol_name,
+                expected_ticks,
+                actual_ticks
+            ))
         end
     endfunction
 endclass

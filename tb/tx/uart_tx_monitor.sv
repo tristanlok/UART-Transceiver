@@ -8,6 +8,24 @@ class uart_tx_monitor;
         this.vif = vif_arg;
     endfunction
 
+    task automatic watch_for_activity(ref logic unexpected_activity_seen);
+        unexpected_activity_seen = 1'b0;
+
+        forever begin
+            @(posedge vif.clk);
+            #1step;
+
+            // Only evaluate normal behavior after reset has been released.
+            if (vif.rst_n === 1'b1) begin
+                if ((vif.tx_ready   !== 1'b1) ||
+                    (vif.tx_out     !== 1'b1)
+                ) begin
+                    unexpected_activity_seen = 1'b1;
+                end
+            end
+        end
+    endtask
+
     task automatic wait_ref_ticks(input int unsigned tick_count);
         repeat (tick_count) begin
             @(negedge vif.ref_baud_tick);
@@ -33,7 +51,7 @@ class uart_tx_monitor;
         @(negedge vif.tx_out);
 
         receive_serial_bit(start_bit);
-        $display("[%0t] TX monitor received start bit: %0b", $time, start_bit);
+        `UART_DISPLAY(("[TX MONITOR] received start bit: %0b", start_bit))
     endtask
 
     task automatic receive_byte(
@@ -41,18 +59,17 @@ class uart_tx_monitor;
     );
         for (int bit_index = 0; bit_index < `DATA_BITS; bit_index++) begin
             receive_serial_bit(data[bit_index]);
-            $display(
-                "[%0t] TX monitor received data bit %0d: %0b",
-                $time,
+            `UART_DISPLAY((
+                "[TX MONITOR] received data bit %0d: %0b",
                 bit_index,
                 data[bit_index]
-            );
+            ))
         end
     endtask
 
     task automatic receive_stop_bit(output logic stop_bit);
         receive_serial_bit(stop_bit);
-        $display("[%0t] TX monitor received stop bit: %0b", $time, stop_bit);
+        `UART_DISPLAY(("[TX MONITOR] received stop bit: %0b", stop_bit))
     endtask
 
     // Compatibility wrappers for the integrated test's older three-call
@@ -63,7 +80,7 @@ class uart_tx_monitor;
 
         receive_start_bit(start_bit);
         if (start_bit !== 1'b0)
-            $error("[%0t] Invalid TX start bit: %b", $time, start_bit);
+            `UART_ERROR(("[TX MONITOR] Invalid TX start bit: %b", start_bit))
     endtask
 
     task automatic check_stop_bit();
@@ -71,7 +88,7 @@ class uart_tx_monitor;
 
         receive_stop_bit(stop_bit);
         if (stop_bit !== 1'b1)
-            $error("[%0t] Invalid TX stop bit: %b", $time, stop_bit);
+            `UART_ERROR(("[TX MONITOR] Invalid TX stop bit: %b", stop_bit))
     endtask
 
     // Return one complete observed frame, mirroring the RX monitor's
@@ -87,13 +104,63 @@ class uart_tx_monitor;
         receive_byte(data);
         receive_stop_bit(stop_bit);
 
-        $display(
-            "[%0t] TX monitor received frame: start=%0b data=0x%0h stop=%0b",
-            $time,
+        `UART_DISPLAY((
+            "[TX MONITOR] received frame: start=%0b data=0x%0h stop=%0b",
             start_bit,
             data,
             stop_bit
-        );
+        ))
+    endtask
+
+    // Measure the start, data, and stop symbol widths in DUT oversampling
+    // ticks. The caller must transmit 0x55 so every boundary from START
+    // through STOP produces a visible tx_out transition. tx_ready marks the
+    // end of STOP because the stop and idle levels are both high.
+    task automatic measure_frame_bit_durations(
+        output int unsigned bit_ticks [0:`DATA_BITS+1]
+    );
+        logic        previous_tx_out;
+        int unsigned completed_symbols;
+        int unsigned current_ticks;
+
+        foreach (bit_ticks[index])
+            bit_ticks[index] = 0;
+
+        wait (vif.rst_n === 1'b1);
+        @(negedge vif.tx_out);
+
+        previous_tx_out  = 1'b0;
+        completed_symbols = 0;
+        current_ticks     = 0;
+
+        // The alternating data pattern creates one edge after START and one
+        // after each data bit, producing DATA_BITS+1 measurable boundaries.
+        while (completed_symbols < (`DATA_BITS + 1)) begin
+            @(posedge vif.clk);
+            #1step;
+
+            if (vif.baud_tick === 1'b1)
+                current_ticks++;
+
+            if (vif.tx_out !== previous_tx_out) begin
+                bit_ticks[completed_symbols] = current_ticks;
+                previous_tx_out              = vif.tx_out;
+                completed_symbols++;
+                current_ticks = 0;
+            end
+        end
+
+        // STOP has no trailing line transition because UART idle is also
+        // high, so count until the transmitter advertises IDLE with ready.
+        while (vif.tx_ready !== 1'b1) begin
+            @(posedge vif.clk);
+            #1step;
+
+            if (vif.baud_tick === 1'b1)
+                current_ticks++;
+        end
+
+        bit_ticks[`DATA_BITS+1] = current_ticks;
     endtask
 
     task automatic wait_for_ready_state(
