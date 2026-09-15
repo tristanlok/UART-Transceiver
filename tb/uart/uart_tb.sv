@@ -1,4 +1,5 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 module uart_tb;
     timeunit 1ns;
@@ -11,18 +12,8 @@ module uart_tb;
 
     logic clk;
     uart_tb_ctrl_if uart_tb_ctrl_vif(clk);
-    uart_rx_if uart_rx_vif(
-        clk,
-        uart_tb_ctrl_vif.rst_n,
-        uart_tb_ctrl_vif.baud_tick,
-        uart_tb_ctrl_vif.ref_baud_tick
-    );
-    uart_tx_if uart_tx_vif(
-        clk,
-        uart_tb_ctrl_vif.rst_n,
-        uart_tb_ctrl_vif.baud_tick,
-        uart_tb_ctrl_vif.ref_baud_tick
-    );
+    uart_rx_if uart_rx_vif();
+    uart_tx_if uart_tx_vif();
 
     uart #(
         .CLOCK_HZ  (CLOCK_HZ),

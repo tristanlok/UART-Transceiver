@@ -1,4 +1,5 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_scoreboard;
 

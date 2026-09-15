@@ -1,4 +1,5 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 // Integrated-test container. It reuses the existing TX and RX test libraries
 // with the components already constructed by uart_env.
@@ -11,6 +12,7 @@ class uart_tests;
         this.env = env_arg;
 
         this.tx_tests = new(
+            env.ctrl_vif,
             env.tx_vif,
             env.reset_driver,
             env.tx_driver,
@@ -19,6 +21,7 @@ class uart_tests;
         );
 
         this.rx_tests = new(
+            env.ctrl_vif,
             env.rx_vif,
             env.reset_driver,
             env.rx_driver,

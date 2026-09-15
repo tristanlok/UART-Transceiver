@@ -1,7 +1,9 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_rx_tests;
-    virtual uart_rx_if  vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_rx_if.monitor      vif;
     uart_reset_driver  reset_driver;
     uart_rx_driver     driver;
     uart_rx_monitor    monitor;
@@ -15,12 +17,14 @@ class uart_rx_tests;
     } uart_rx_possible_states_t;
 
     function new(
-        virtual uart_rx_if vif_arg,
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_rx_if.monitor      vif_arg,
         uart_reset_driver reset_driver_arg,
         uart_rx_driver driver_arg,
         uart_rx_monitor monitor_arg,
         uart_rx_scoreboard scoreboard_arg
     );
+        this.ctrl_vif   = ctrl_vif_arg;
         this.vif        = vif_arg;
         this.reset_driver = reset_driver_arg;
         this.driver     = driver_arg;
@@ -47,11 +51,11 @@ class uart_rx_tests;
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat (reset_cycles)
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
         #1step;
 
         scoreboard.check_reset_state(
-            vif.rst_n,
+            ctrl_vif.rst_n,
             vif.rx_data,
             vif.rx_valid,
             vif.rx_busy,
@@ -106,8 +110,8 @@ class uart_rx_tests;
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
-            @(posedge vif.clk);
-        scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
+            @(posedge ctrl_vif.clk);
+        scoreboard.check_reset_state(ctrl_vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
         reset_driver.deassert_reset();
         `UART_DISPLAY(("[RX TEST] Reset deasserted on DUT"))
 
@@ -155,14 +159,14 @@ class uart_rx_tests;
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
-            @(posedge vif.clk);
-        scoreboard.check_reset_state(vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
+            @(posedge ctrl_vif.clk);
+        scoreboard.check_reset_state(ctrl_vif.rst_n, vif.rx_data, vif.rx_valid, vif.rx_busy, vif.framing_error);
         reset_driver.deassert_reset();
         `UART_DISPLAY(("[RX TEST] Reset deasserted on DUT"))
 
         `UART_DISPLAY(("[RX TEST] Delaying before beginning test"))
         repeat ($urandom_range(200, 5))
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
 
         fork
             driver.drive_low_pulse(
@@ -212,9 +216,9 @@ class uart_rx_tests;
         driver.drive_idle();
         reset_driver.assert_reset();
         repeat ($urandom_range(200, 5))
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
         scoreboard.check_reset_state(
-            vif.rst_n,
+            ctrl_vif.rst_n,
             vif.rx_data,
             vif.rx_valid,
             vif.rx_busy,
@@ -318,7 +322,7 @@ class uart_rx_tests;
                     actual_error
                 );
 
-                @(posedge vif.clk);
+                @(posedge ctrl_vif.clk);
                 #1step;
                 valid_after_pulse = vif.rx_valid;
                 error_after_pulse = vif.framing_error;

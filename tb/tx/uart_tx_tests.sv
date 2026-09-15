@@ -1,7 +1,9 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_tx_tests;
-    virtual uart_tx_if  vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_tx_if.monitor      vif;
     uart_reset_driver   reset_driver;
     uart_tx_driver      driver;
     uart_tx_monitor     monitor;
@@ -16,12 +18,14 @@ class uart_tx_tests;
     } uart_tx_possible_states_t;
 
     function new(
-        virtual uart_tx_if vif_arg,
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_tx_if.monitor      vif_arg,
         uart_reset_driver reset_driver_arg,
         uart_tx_driver driver_arg,
         uart_tx_monitor monitor_arg,
         uart_tx_scoreboard scoreboard_arg
     );
+        this.ctrl_vif     = ctrl_vif_arg;
         this.vif          = vif_arg;
         this.reset_driver = reset_driver_arg;
         this.driver       = driver_arg;
@@ -42,14 +46,14 @@ class uart_tx_tests;
         reset_driver.assert_reset();
 
         repeat (reset_cycles)
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
         #1step;
 
         scoreboard.check_reset_state(
-            vif.rst_n,
+            ctrl_vif.rst_n,
             vif.tx_out,
             vif.tx_ready,
-            vif.baud_tick
+            ctrl_vif.baud_tick
         );
 
         reset_driver.deassert_reset();

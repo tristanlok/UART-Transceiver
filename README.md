@@ -68,3 +68,35 @@ external UART -> rx pin -> 2+ flip-flop synchronizer -> uart_rx logic (100 MHz c
 The transmit and receive paths shall have independent control and state. An
 active transmission shall not prevent reception, and an active reception shall
 not prevent transmission.
+
+## Repository layout
+
+```text
+rtl/          Synthesizable UART, register, and AXI-Lite design
+tb/           Layered simulation testbenches and reusable verification code
+docs/         Architecture, specification, and per-layer verification plans
+```
+
+Use the [system architecture](docs/architecture/system-overview.md) as the
+starting point, then continue through the [specifications](docs/specifications/)
+and [verification plans](docs/verification/). These cover every RTL block,
+every verification layer, and all commands.
+
+## Simulation and lint
+
+Run all six simulation suites with:
+
+```sh
+make tx-sim-all
+make rx-sim-all
+make uart-sim-all
+make reg-sim-all
+make axi-sim-all
+make axi-uart-sim-all
+```
+
+See [running and debugging tests](docs/verification/running-tests.md) for
+single-test commands, lint targets, logs, waveforms, and extension steps.
+
+The verification environment is simulation based. Formal-verification and
+assertion-specific infrastructure are intentionally not part of this project.

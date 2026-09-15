@@ -1,4 +1,4 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
 
 module uart_rx (
     input  logic                    clk,

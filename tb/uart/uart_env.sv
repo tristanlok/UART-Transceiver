@@ -2,9 +2,9 @@
 // integrated UART. The environment builds and owns the equipment; individual
 // tests decide which scenarios that equipment performs.
 class uart_env;
-    virtual uart_tb_ctrl_if ctrl_vif;
-    virtual uart_tx_if      tx_vif;
-    virtual uart_rx_if      rx_vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_tx_if.monitor      tx_vif;
+    virtual uart_rx_if.monitor      rx_vif;
 
     uart_reset_driver   reset_driver;
     uart_monitor        uart_dup_monitor;
@@ -31,12 +31,12 @@ class uart_env;
         this.uart_dup_monitor    = new(ctrl_vif_arg, tx_vif_arg, rx_vif_arg);
         this.uart_dup_scoreboard = new();
 
-        this.tx_driver     = new(tx_vif_arg);
-        this.tx_monitor    = new(tx_vif_arg);
+        this.tx_driver     = new(ctrl_vif_arg, tx_vif_arg);
+        this.tx_monitor    = new(ctrl_vif_arg, tx_vif_arg);
         this.tx_scoreboard = new();
 
-        this.rx_driver     = new(rx_vif_arg);
-        this.rx_monitor    = new(rx_vif_arg);
+        this.rx_driver     = new(ctrl_vif_arg, rx_vif_arg);
+        this.rx_monitor    = new(ctrl_vif_arg, rx_vif_arg);
         this.rx_scoreboard = new();
     endfunction
 

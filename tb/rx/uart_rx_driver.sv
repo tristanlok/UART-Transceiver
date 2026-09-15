@@ -1,10 +1,16 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_rx_driver;
-    virtual uart_rx_if vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_rx_if.driver       vif;
 
-    function new(virtual uart_rx_if vif_arg);
-        this.vif = vif_arg;
+    function new(
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_rx_if.driver       vif_arg
+    );
+        this.ctrl_vif = ctrl_vif_arg;
+        this.vif      = vif_arg;
     endfunction
 
     // UART serial input idles high. Reset itself is owned separately by
@@ -19,13 +25,13 @@ class uart_rx_driver;
 
     task automatic wait_ref_ticks(input int unsigned tick_count);
         repeat (tick_count) begin
-            @(negedge vif.ref_baud_tick);
+            @(negedge ctrl_vif.ref_baud_tick);
             #1step;
         end
     endtask
 
     task automatic align_to_ref_tick();
-        @(negedge vif.ref_baud_tick);
+        @(negedge ctrl_vif.ref_baud_tick);
         #1step;
     endtask
 

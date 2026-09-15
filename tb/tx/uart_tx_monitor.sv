@@ -1,22 +1,28 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_tx_monitor;
 
-    virtual uart_tx_if vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_tx_if.monitor      vif;
 
-    function new(virtual uart_tx_if vif_arg);
-        this.vif = vif_arg;
+    function new(
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_tx_if.monitor      vif_arg
+    );
+        this.ctrl_vif = ctrl_vif_arg;
+        this.vif      = vif_arg;
     endfunction
 
     task automatic watch_for_activity(ref logic unexpected_activity_seen);
         unexpected_activity_seen = 1'b0;
 
         forever begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
             // Only evaluate normal behavior after reset has been released.
-            if (vif.rst_n === 1'b1) begin
+            if (ctrl_vif.rst_n === 1'b1) begin
                 if ((vif.tx_ready   !== 1'b1) ||
                     (vif.tx_out     !== 1'b1)
                 ) begin
@@ -28,7 +34,7 @@ class uart_tx_monitor;
 
     task automatic wait_ref_ticks(input int unsigned tick_count);
         repeat (tick_count) begin
-            @(negedge vif.ref_baud_tick);
+            @(negedge ctrl_vif.ref_baud_tick);
             #1step;
         end
     endtask
@@ -98,7 +104,7 @@ class uart_tx_monitor;
         output logic                  start_bit,
         output logic                  stop_bit
     );
-        wait (vif.rst_n === 1'b1);
+        wait (ctrl_vif.rst_n === 1'b1);
 
         receive_start_bit(start_bit);
         receive_byte(data);
@@ -126,7 +132,7 @@ class uart_tx_monitor;
         foreach (bit_ticks[index])
             bit_ticks[index] = 0;
 
-        wait (vif.rst_n === 1'b1);
+        wait (ctrl_vif.rst_n === 1'b1);
         @(negedge vif.tx_out);
 
         previous_tx_out  = 1'b0;
@@ -136,10 +142,10 @@ class uart_tx_monitor;
         // The alternating data pattern creates one edge after START and one
         // after each data bit, producing DATA_BITS+1 measurable boundaries.
         while (completed_symbols < (`DATA_BITS + 1)) begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
-            if (vif.baud_tick === 1'b1)
+            if (ctrl_vif.baud_tick === 1'b1)
                 current_ticks++;
 
             if (vif.tx_out !== previous_tx_out) begin
@@ -153,10 +159,10 @@ class uart_tx_monitor;
         // STOP has no trailing line transition because UART idle is also
         // high, so count until the transmitter advertises IDLE with ready.
         while (vif.tx_ready !== 1'b1) begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
-            if (vif.baud_tick === 1'b1)
+            if (ctrl_vif.baud_tick === 1'b1)
                 current_ticks++;
         end
 
@@ -174,7 +180,7 @@ class uart_tx_monitor;
         baud_ticks_seen = 0;
 
         while (baud_ticks_seen < timeout_baud_ticks) begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
             if (vif.tx_ready === expected_ready) begin
@@ -182,7 +188,7 @@ class uart_tx_monitor;
                 return;
             end
 
-            if (vif.baud_tick === 1'b1)
+            if (ctrl_vif.baud_tick === 1'b1)
                 baud_ticks_seen++;
         end
     endtask

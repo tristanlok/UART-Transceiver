@@ -1,10 +1,9 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 module uart_tx_tb;
     timeunit 1ns;
     timeprecision 1ps;
-
-    import uart_tx_tb_pkg::*;
 
     localparam int unsigned CLOCK_HZ  = 100_000_000;
     localparam int unsigned BAUD_RATE = 115_200;
@@ -13,12 +12,7 @@ module uart_tx_tb;
 
     logic clk;
     uart_tb_ctrl_if uart_tb_ctrl_vif(clk);
-    uart_tx_if uart_tx_vif(
-        clk,
-        uart_tb_ctrl_vif.rst_n,
-        uart_tb_ctrl_vif.baud_tick,
-        uart_tb_ctrl_vif.ref_baud_tick
-    );
+    uart_tx_if uart_tx_vif();
 
     baud_generator #(
         .CLOCK_HZ  (CLOCK_HZ),
@@ -31,8 +25,8 @@ module uart_tx_tb;
 
     uart_tx uart_tx_inst (
         .clk        (clk),
-        .rst_n      (uart_tx_vif.rst_n),
-        .baud_tick  (uart_tx_vif.baud_tick),
+        .rst_n      (uart_tb_ctrl_vif.rst_n),
+        .baud_tick  (uart_tb_ctrl_vif.baud_tick),
         .data_in    (uart_tx_vif.tx_data),
         .tx_start   (uart_tx_vif.tx_start),
         .tx_ready   (uart_tx_vif.tx_ready),
@@ -68,8 +62,6 @@ module uart_tx_tb;
         `UART_DISPLAY(("[TX TB] Recording waveforms to %s", wave_file))
     end
 
-    // add assertions and cover properties
-
     initial begin : test_sequence
         string testname;
         uart_reset_driver reset_driver;
@@ -85,10 +77,11 @@ module uart_tx_tb;
             testname = "tx_sim_sanity";
 
         reset_driver = new(uart_tb_ctrl_vif);
-        driver = new(uart_tx_vif);
-        monitor = new(uart_tx_vif);
+        driver = new(uart_tb_ctrl_vif, uart_tx_vif);
+        monitor = new(uart_tb_ctrl_vif, uart_tx_vif);
         scoreboard = new();
         tests = new(
+            uart_tb_ctrl_vif,
             uart_tx_vif,
             reset_driver,
             driver,

@@ -1,15 +1,16 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_monitor;
 
-    virtual uart_tb_ctrl_if ctrl_vif;
-    virtual uart_tx_if      tx_vif;
-    virtual uart_rx_if      rx_vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_tx_if.monitor      tx_vif;
+    virtual uart_rx_if.monitor      rx_vif;
 
     function new(
-        virtual uart_tb_ctrl_if ctrl_vif_arg,
-        virtual uart_tx_if      tx_vif_arg,
-        virtual uart_rx_if      rx_vif_arg
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_tx_if.monitor      tx_vif_arg,
+        virtual uart_rx_if.monitor      rx_vif_arg
     );
         this.ctrl_vif = ctrl_vif_arg;
         this.tx_vif   = tx_vif_arg;

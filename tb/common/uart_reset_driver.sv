@@ -1,9 +1,10 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_reset_driver;
-    virtual uart_tb_ctrl_if vif;
+    virtual uart_tb_ctrl_if.reset_driver vif;
 
-    function new(virtual uart_tb_ctrl_if vif_arg);
+    function new(virtual uart_tb_ctrl_if.reset_driver vif_arg);
         this.vif = vif_arg;
     endfunction
 

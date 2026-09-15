@@ -1,22 +1,28 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_rx_monitor;
 
-    virtual uart_rx_if vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_rx_if.monitor      vif;
 
-    function new(virtual uart_rx_if vif_arg);
-        this.vif = vif_arg;
+    function new(
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_rx_if.monitor      vif_arg
+    );
+        this.ctrl_vif = ctrl_vif_arg;
+        this.vif      = vif_arg;
     endfunction
 
     task automatic watch_for_activity(ref logic unexpected_activity_seen);
         unexpected_activity_seen = 1'b0;
 
         forever begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
             // Only evaluate normal behavior after reset has been released.
-            if (vif.rst_n === 1'b1) begin
+            if (ctrl_vif.rst_n === 1'b1) begin
                 if ((vif.rx_in          !== 1'b1) ||
                     (vif.rx_busy        !== 1'b0) ||
                     (vif.rx_valid       !== 1'b0) ||
@@ -37,10 +43,10 @@ class uart_rx_monitor;
         output logic                  framing_error
     );
         // Ignore output activity until reset has been released.
-        wait (vif.rst_n === 1'b1);
+        wait (ctrl_vif.rst_n === 1'b1);
 
         forever begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
             if ((vif.rx_valid === 1'b1) ||
@@ -83,7 +89,7 @@ class uart_rx_monitor;
         baud_ticks_seen = 0;
 
         while (baud_ticks_seen < timeout_baud_ticks) begin
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
             #1step;
 
             if (vif.rx_busy === expected_busy) begin
@@ -91,7 +97,7 @@ class uart_rx_monitor;
                 return;
             end
 
-            if (vif.baud_tick === 1'b1)
+            if (ctrl_vif.baud_tick === 1'b1)
                 baud_ticks_seen++;
         end
     endtask

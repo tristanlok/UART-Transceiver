@@ -1,10 +1,9 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 module uart_rx_tb;
     timeunit 1ns;
     timeprecision 1ps;
-
-    import uart_rx_tb_pkg::*;
 
     localparam int unsigned CLOCK_HZ  = 100_000_000;
     localparam int unsigned BAUD_RATE = 115_200;
@@ -13,12 +12,7 @@ module uart_rx_tb;
 
     logic clk;
     uart_tb_ctrl_if uart_tb_ctrl_vif(clk);
-    uart_rx_if uart_rx_vif(
-        clk,
-        uart_tb_ctrl_vif.rst_n,
-        uart_tb_ctrl_vif.baud_tick,
-        uart_tb_ctrl_vif.ref_baud_tick
-    );
+    uart_rx_if uart_rx_vif();
 
     baud_generator #(
         .CLOCK_HZ  (CLOCK_HZ),
@@ -31,8 +25,8 @@ module uart_rx_tb;
 
     uart_rx uart_rx_inst (
         .clk            (clk),
-        .rst_n          (uart_rx_vif.rst_n),
-        .baud_tick      (uart_rx_vif.baud_tick),
+        .rst_n          (uart_tb_ctrl_vif.rst_n),
+        .baud_tick      (uart_tb_ctrl_vif.baud_tick),
         .rx_in          (uart_rx_vif.rx_in),
 
         .data_out       (uart_rx_vif.rx_data),
@@ -84,10 +78,11 @@ module uart_rx_tb;
             testname = "rx_sim_sanity";
 
         reset_driver = new(uart_tb_ctrl_vif);
-        driver = new(uart_rx_vif);
-        monitor = new(uart_rx_vif);
+        driver = new(uart_tb_ctrl_vif, uart_rx_vif);
+        monitor = new(uart_tb_ctrl_vif, uart_rx_vif);
         scoreboard = new();
         tests = new(
+            uart_tb_ctrl_vif,
             uart_rx_vif,
             reset_driver,
             driver,

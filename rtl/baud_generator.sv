@@ -1,4 +1,4 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
 
 module baud_generator #(
     parameter int unsigned CLOCK_HZ  = 100_000_000,

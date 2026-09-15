@@ -1,10 +1,16 @@
-`include "rtl/uart_config.svh"
+`include "uart_config.svh"
+`include "uart_tb_log.svh"
 
 class uart_tx_driver;
-    virtual uart_tx_if vif;
+    virtual uart_tb_ctrl_if.monitor ctrl_vif;
+    virtual uart_tx_if.driver       vif;
 
-    function new(virtual uart_tx_if vif_arg);
-        this.vif = vif_arg;
+    function new(
+        virtual uart_tb_ctrl_if.monitor ctrl_vif_arg,
+        virtual uart_tx_if.driver       vif_arg
+    );
+        this.ctrl_vif = ctrl_vif_arg;
+        this.vif      = vif_arg;
     endfunction
 
     // Put only the TX protocol inputs into their inactive values. Reset is
@@ -24,14 +30,14 @@ class uart_tx_driver;
 
     task automatic wait_clock_cycles(input int unsigned cycles);
         repeat (cycles)
-            @(posedge vif.clk);
+            @(posedge ctrl_vif.clk);
     endtask
 
     // Count the oversampling ticks actually consumed by the DUT. This is used
     // when a test deliberately targets a particular transmitter FSM window.
     task automatic wait_baud_ticks(input int unsigned tick_count);
         repeat (tick_count) begin
-            @(posedge vif.baud_tick);
+            @(posedge ctrl_vif.baud_tick);
             #1step;
         end
     endtask
@@ -39,7 +45,7 @@ class uart_tx_driver;
     task automatic assert_request(input logic [`DATA_BITS-1:0] data);
         // Drive away from the DUT's active edge so the request is stable when
         // uart_tx samples it on the following rising edge.
-        @(negedge vif.clk);
+        @(negedge ctrl_vif.clk);
         vif.tx_data  = data;
         vif.tx_start = 1'b1;
 
@@ -54,12 +60,12 @@ class uart_tx_driver;
     endtask
 
     task automatic set_data(input logic [`DATA_BITS-1:0] data);
-        @(negedge vif.clk);
+        @(negedge ctrl_vif.clk);
         vif.tx_data = data;
     endtask
 
     task automatic release_request();
-        @(negedge vif.clk);
+        @(negedge ctrl_vif.clk);
         vif.tx_start = 1'b0;
 
         `UART_DISPLAY(("[TX DRIVER] released request"))
